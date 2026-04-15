@@ -27,7 +27,7 @@ export default function Navbar({ onAuthClick }: NavbarProps) {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-800">Vidya<span className="text-blue-600">AI</span></span>
+            <span className="text-xl font-bold text-slate-800">edu<span className="text-blue-600">Finance</span></span>
           </button>
 
           <div className="hidden md:flex items-center gap-1">
