@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { GraduationCap, Brain, TrendingUp, Calculator, BarChart3, MessageCircle, Star, ArrowRight, Globe, IndianRupee, BookOpen, Users, Award, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 
@@ -55,90 +55,90 @@ const testimonials = [
 ];
 
 export default function Landing({ onAuthClick }: LandingProps) {
-  const { setCurrentPage, user } = useApp();
+  const { session, user, setCurrentPage } = useApp();
 
   function handleCTA() {
-    if (user) setCurrentPage('dashboard');
+    if (user || session) setCurrentPage('dashboard');
     else onAuthClick();
   }
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
-      {/* Hero */}
-      <section className="relative pt-28 pb-20 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900" />
-        <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'radial-gradient(circle at 20% 80%, rgba(6,182,212,0.4) 0%, transparent 50%), radial-gradient(circle at 80% 20%, rgba(59,130,246,0.4) 0%, transparent 50%)' }} />
-        <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px)', backgroundSize: '60px 60px' }} />
+    <div className="min-h-screen bg-slate-50 overflow-x-hidden">
+      
+      {/* ----------------- INTEGRATED PREMIUM HERO SECTION ----------------- */}
+      <section className="relative min-h-screen flex flex-col items-center justify-center p-6 overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-brand-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-primary-100 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-4xl mx-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 border border-blue-400/30 rounded-full text-blue-300 text-sm font-medium mb-6 backdrop-blur-sm">
-              <Sparkles className="w-4 h-4" />
-              AI-Powered Study Abroad Platform for Indian Students
-            </div>
-            <h1 className="text-5xl md:text-7xl font-extrabold text-white leading-[1.08] mb-6 tracking-tight">
-              Your Dream University.
-              <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">
-                Funded. Achieved.
-              </span>
-            </h1>
-            <p className="text-lg md:text-xl text-slate-300 mb-10 leading-relaxed max-w-2xl mx-auto">
-              VidyaAI is an AI-first ecosystem that guides Indian students from university discovery to education loan — turning study abroad dreams into reality.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              <button
-                onClick={handleCTA}
-                className="group flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl text-lg transition-all shadow-lg shadow-blue-900/50 hover:shadow-blue-800/50"
-              >
-                Start Free — No Card Needed
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-              </button>
-              <button
-                onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                className="flex items-center justify-center gap-2 px-8 py-4 bg-white/10 hover:bg-white/20 text-white font-medium rounded-xl text-lg transition-colors backdrop-blur-sm border border-white/20"
-              >
-                See How It Works
-              </button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
-              {[
-                { value: 50000, suffix: '+', label: 'Students Guided' },
-                { value: 500, suffix: '+', label: 'Universities' },
-                { value: 15, suffix: ' Cr+', label: 'Loans Facilitated' },
-                { value: 92, suffix: '%', label: 'Placement Rate' },
-              ].map(stat => (
-                <div key={stat.label} className="bg-white/10 backdrop-blur-sm border border-white/15 rounded-xl p-4">
-                  <div className="text-2xl md:text-3xl font-extrabold text-white">
-                    <AnimatedCounter target={stat.value} suffix={stat.suffix} />
-                  </div>
-                  <div className="text-slate-400 text-xs mt-1">{stat.label}</div>
-                </div>
-              ))}
-            </div>
+        {/* Main Glassmorphism Content Card */}
+        <div className="glass-card max-w-4xl w-full text-center space-y-8 p-12 relative z-10 mt-16">
+          
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-50 border border-primary-100 text-primary-600 font-semibold text-sm mb-4">
+            <Sparkles className="w-4 h-4" /> Next-Gen Education Financing
           </div>
+
+          <h1 className="text-5xl md:text-6xl font-bold text-slate-900 tracking-tight leading-tight">
+            Your Journey to <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-brand-500">Global Education</span>
+          </h1>
+          
+          <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed">
+            Discover the best universities, calculate your ROI, and secure student loans with zero hassle. AI-powered matching for your career goals.
+          </p>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-5 pt-8">
+            {session || user ? (
+              <button onClick={() => setCurrentPage('dashboard')} className="btn-primary w-full sm:w-auto text-lg px-8">
+                Go to Dashboard
+              </button>
+            ) : (
+              <>
+                <button onClick={handleCTA} className="btn-primary w-full sm:w-auto text-lg px-8">
+                  Start Free Assessment
+                </button>
+                <button onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })} className="btn-secondary w-full sm:w-auto text-lg px-8">
+                  See How It Works
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Stats Section Converted to Glass UI */}
+        <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto w-full mt-12">
+          {[
+            { value: 50000, suffix: '+', label: 'Students Guided' },
+            { value: 500, suffix: '+', label: 'Universities' },
+            { value: 15, suffix: ' Cr+', label: 'Loans Facilitated' },
+            { value: 92, suffix: '%', label: 'Placement Rate' },
+          ].map(stat => (
+            <div key={stat.label} className="glass-card p-4 text-center">
+              <div className="text-2xl md:text-3xl font-extrabold text-primary-600">
+                <AnimatedCounter target={stat.value} suffix={stat.suffix} />
+              </div>
+              <div className="text-slate-500 text-xs mt-1 font-medium">{stat.label}</div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-24 bg-slate-50">
+      {/* ----------------- FEATURES SECTION ----------------- */}
+      <section id="features" className="py-24 bg-white relative z-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">AI Tools Suite</span>
+            <span className="text-primary-600 font-semibold text-sm uppercase tracking-wider">AI Tools Suite</span>
             <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mt-2 mb-4">Everything you need, in one place</h2>
             <p className="text-slate-500 text-lg max-w-2xl mx-auto">Six AI-powered tools that cover your entire study abroad journey — from exploration to loan disbursement.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.map((f, i) => (
-              <div key={i} className="group bg-white rounded-2xl p-6 border border-slate-100 hover:border-blue-200 hover:shadow-lg hover:shadow-blue-50 transition-all cursor-pointer" onClick={handleCTA}>
+              <div key={i} className="group glass-card hover:border-primary-200 cursor-pointer" onClick={handleCTA}>
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${f.color}`}>
                   <f.icon className="w-6 h-6" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900 mb-2">{f.title}</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
-                <div className="flex items-center gap-1 mt-4 text-blue-600 text-sm font-medium group-hover:gap-2 transition-all">
+                <div className="flex items-center gap-1 mt-4 text-primary-600 text-sm font-medium group-hover:gap-2 transition-all">
                   Try it free <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
@@ -147,18 +147,18 @@ export default function Landing({ onAuthClick }: LandingProps) {
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-24 bg-white">
+      {/* ----------------- HOW IT WORKS ----------------- */}
+      <section className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
             <div>
-              <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Simple Process</span>
+              <span className="text-primary-600 font-semibold text-sm uppercase tracking-wider">Simple Process</span>
               <h2 className="text-4xl font-extrabold text-slate-900 mt-2 mb-4">From goal to acceptance in 3 steps</h2>
               <p className="text-slate-500 mb-10">VidyaAI removes the confusion from study abroad planning. Our AI does the heavy lifting so you can focus on your applications.</p>
               <div className="space-y-6">
                 {steps.map((s, i) => (
                   <div key={i} className="flex gap-5">
-                    <div className="w-12 h-12 rounded-xl bg-blue-600 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-lg shadow-blue-200">
+                    <div className="w-12 h-12 rounded-xl bg-primary-600 text-white font-bold text-lg flex items-center justify-center shrink-0 shadow-lg shadow-primary-200">
                       {s.step}
                     </div>
                     <div>
@@ -168,14 +168,14 @@ export default function Landing({ onAuthClick }: LandingProps) {
                   </div>
                 ))}
               </div>
-              <button onClick={handleCTA} className="mt-10 flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors">
+              <button onClick={handleCTA} className="btn-primary mt-10 inline-flex items-center gap-2">
                 Get Started Free <ArrowRight className="w-4 h-4" />
               </button>
             </div>
-            <div className="bg-gradient-to-br from-slate-900 to-blue-950 rounded-3xl p-8 text-white shadow-2xl">
+            <div className="bg-gradient-to-br from-slate-900 to-primary-900 rounded-3xl p-8 text-white shadow-2xl">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 bg-blue-500/30 rounded-xl flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-cyan-400" />
+                <div className="w-10 h-10 bg-primary-500/30 rounded-xl flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-brand-400" />
                 </div>
                 <div>
                   <div className="font-bold">AI Analysis Complete</div>
@@ -192,10 +192,10 @@ export default function Landing({ onAuthClick }: LandingProps) {
                   <div key={item.label}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-slate-300">{item.label}</span>
-                      <span className="text-cyan-400 font-semibold">{item.score}%</span>
+                      <span className="text-brand-400 font-semibold">{item.score}%</span>
                     </div>
                     <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-blue-500 to-cyan-400 rounded-full" style={{ width: `${item.score}%` }} />
+                      <div className="h-full bg-gradient-to-r from-primary-500 to-brand-400 rounded-full" style={{ width: `${item.score}%` }} />
                     </div>
                   </div>
                 ))}
@@ -211,8 +211,8 @@ export default function Landing({ onAuthClick }: LandingProps) {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-24 bg-slate-50">
+      {/* ----------------- TESTIMONIALS ----------------- */}
+      <section className="py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-extrabold text-slate-900 mb-3">Students who made it happen</h2>
@@ -220,13 +220,13 @@ export default function Landing({ onAuthClick }: LandingProps) {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+              <div key={i} className="glass-card">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(t.stars)].map((_, j) => <Star key={j} className="w-4 h-4 text-amber-400 fill-amber-400" />)}
                 </div>
                 <p className="text-slate-700 text-sm leading-relaxed mb-5">"{t.text}"</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary-500 to-brand-500 flex items-center justify-center text-white font-bold text-sm">{t.avatar}</div>
                   <div>
                     <div className="font-semibold text-slate-900 text-sm">{t.name}</div>
                     <div className="text-slate-500 text-xs">{t.program}</div>
@@ -238,37 +238,38 @@ export default function Landing({ onAuthClick }: LandingProps) {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="py-24 bg-gradient-to-br from-blue-600 to-cyan-600">
-        <div className="max-w-4xl mx-auto px-4 text-center">
-          <div className="flex justify-center gap-4 mb-6 text-white/80">
-            <div className="flex items-center gap-2"><Users className="w-5 h-5" /><span className="text-sm">50,000+ Students</span></div>
-            <div className="flex items-center gap-2"><Award className="w-5 h-5" /><span className="text-sm">Top 10 Edtech</span></div>
-            <div className="flex items-center gap-2"><BookOpen className="w-5 h-5" /><span className="text-sm">500+ Universities</span></div>
+      {/* ----------------- CTA ----------------- */}
+      <section className="py-24 bg-gradient-to-br from-primary-600 to-brand-500 relative overflow-hidden">
+        <div className="absolute inset-0 bg-white/10 backdrop-blur-3xl"></div>
+        <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
+          <div className="flex flex-wrap justify-center gap-4 mb-6 text-white/90">
+            <div className="flex items-center gap-2"><Users className="w-5 h-5" /><span className="text-sm font-medium">50,000+ Students</span></div>
+            <div className="flex items-center gap-2"><Award className="w-5 h-5" /><span className="text-sm font-medium">Top 10 Edtech</span></div>
+            <div className="flex items-center gap-2"><BookOpen className="w-5 h-5" /><span className="text-sm font-medium">500+ Universities</span></div>
           </div>
           <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-4">Your future starts with one click.</h2>
-          <p className="text-blue-100 text-lg mb-8">Join thousands of Indian students who've used VidyaAI to plan smarter, apply better, and get funded.</p>
-          <button onClick={handleCTA} className="inline-flex items-center gap-2 px-10 py-4 bg-white text-blue-700 font-bold rounded-xl text-lg hover:bg-blue-50 transition-colors shadow-xl">
+          <p className="text-primary-100 text-lg mb-8">Join thousands of Indian students who've used VidyaAI to plan smarter, apply better, and get funded.</p>
+          <button onClick={handleCTA} className="inline-flex items-center gap-2 px-10 py-4 bg-white text-primary-700 font-bold rounded-xl text-lg hover:bg-slate-50 transition-colors shadow-xl transform hover:-translate-y-1">
             Start for Free <ArrowRight className="w-5 h-5" />
           </button>
-          <p className="text-blue-200 text-sm mt-4">No credit card required. Takes 2 minutes.</p>
+          <p className="text-primary-200 text-sm mt-4">No credit card required. Takes 2 minutes.</p>
         </div>
       </section>
 
-      {/* Footer */}
+      {/* ----------------- FOOTER ----------------- */}
       <footer className="bg-slate-900 py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-primary-500 to-brand-500 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-white font-bold text-lg">Vidya<span className="text-cyan-400">AI</span></span>
+            <span className="text-white font-bold text-lg">Vidya<span className="text-brand-400">AI</span></span>
           </div>
-          <p className="text-slate-500 text-sm">© 2025 VidyaAI. Empowering Indian students to achieve global excellence.</p>
+          <p className="text-slate-500 text-sm">© 2026 VidyaAI. Empowering Indian students to achieve global excellence.</p>
           <div className="flex gap-4 text-slate-500 text-sm">
-            <span className="hover:text-slate-300 cursor-pointer">Privacy</span>
-            <span className="hover:text-slate-300 cursor-pointer">Terms</span>
-            <span className="hover:text-slate-300 cursor-pointer">Contact</span>
+            <span className="hover:text-slate-300 cursor-pointer transition-colors">Privacy</span>
+            <span className="hover:text-slate-300 cursor-pointer transition-colors">Terms</span>
+            <span className="hover:text-slate-300 cursor-pointer transition-colors">Contact</span>
           </div>
         </div>
       </footer>
