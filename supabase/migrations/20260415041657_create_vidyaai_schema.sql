@@ -1,9 +1,9 @@
 
 /*
-  # VidyaAI Platform Schema
+  # eduFinance Platform Schema
 
   ## Overview
-  Creates the full database schema for the VidyaAI student engagement and education financing platform.
+  Creates the full database schema for the eduFinance student engagement and education financing platform.
 
   ## New Tables
   1. `student_profiles` - Extended student profile with academic and career preferences
