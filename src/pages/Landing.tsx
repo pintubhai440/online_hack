@@ -49,7 +49,7 @@ const steps = [
 ];
 
 const testimonials = [
-  { name: 'Arjun Mehta', program: 'MS CS – Stanford', avatar: 'AM', stars: 5, text: 'VidyaAI predicted my admission probability as 78% for Stanford. I got in! The ROI calculator helped me convince my parents it was worth the investment.' },
+  { name: 'Arjun Mehta', program: 'MS CS – Stanford', avatar: 'AM', stars: 5, text: 'eduFinance predicted my admission probability as 78% for Stanford. I got in! The ROI calculator helped me convince my parents it was worth the investment.' },
   { name: 'Priya Nair', program: 'MBA – Booth, Chicago', avatar: 'PN', stars: 5, text: 'Got my education loan from HDFC Credila at 10.5% through the Loan Estimator. Saved ₹2L vs what my bank was offering. Absolutely worth it.' },
   { name: 'Rahul Sharma', program: 'MEng – TU Munich', avatar: 'RS', stars: 5, text: 'Germany was never on my radar until the Career Navigator suggested it. Near-zero tuition, strong engineering program, and easy PR path. Best decision ever.' },
 ];
@@ -84,7 +84,7 @@ export default function Landing({ onAuthClick }: LandingProps) {
               </span>
             </h1>
             <p className="text-lg md:text-xl text-slate-300 mb-10 leading-relaxed max-w-2xl mx-auto">
-              VidyaAI is an AI-first ecosystem that guides Indian students from university discovery to education loan — turning study abroad dreams into reality.
+              eduFinance is an AI-first ecosystem that guides Indian students from university discovery to education loan — turning study abroad dreams into reality.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <button
@@ -154,7 +154,7 @@ export default function Landing({ onAuthClick }: LandingProps) {
             <div>
               <span className="text-blue-600 font-semibold text-sm uppercase tracking-wider">Simple Process</span>
               <h2 className="text-4xl font-extrabold text-slate-900 mt-2 mb-4">From goal to acceptance in 3 steps</h2>
-              <p className="text-slate-500 mb-10">VidyaAI removes the confusion from study abroad planning. Our AI does the heavy lifting so you can focus on your applications.</p>
+              <p className="text-slate-500 mb-10">eduFinance removes the confusion from study abroad planning. Our AI does the heavy lifting so you can focus on your applications.</p>
               <div className="space-y-6">
                 {steps.map((s, i) => (
                   <div key={i} className="flex gap-5">
@@ -216,7 +216,7 @@ export default function Landing({ onAuthClick }: LandingProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-extrabold text-slate-900 mb-3">Students who made it happen</h2>
-            <p className="text-slate-500">Real stories from Indian students who used VidyaAI to get into their dream programs.</p>
+            <p className="text-slate-500">Real stories from Indian students who used eduFinance to get into their dream programs.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {testimonials.map((t, i) => (
@@ -247,7 +247,7 @@ export default function Landing({ onAuthClick }: LandingProps) {
             <div className="flex items-center gap-2"><BookOpen className="w-5 h-5" /><span className="text-sm">500+ Universities</span></div>
           </div>
           <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-4">Your future starts with one click.</h2>
-          <p className="text-blue-100 text-lg mb-8">Join thousands of Indian students who've used VidyaAI to plan smarter, apply better, and get funded.</p>
+          <p className="text-blue-100 text-lg mb-8">Join thousands of Indian students who've used eduFinance to plan smarter, apply better, and get funded.</p>
           <button onClick={handleCTA} className="inline-flex items-center gap-2 px-10 py-4 bg-white text-blue-700 font-bold rounded-xl text-lg hover:bg-blue-50 transition-colors shadow-xl">
             Start for Free <ArrowRight className="w-5 h-5" />
           </button>
@@ -262,9 +262,9 @@ export default function Landing({ onAuthClick }: LandingProps) {
             <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-cyan-500 rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-white" />
             </div>
-            <span className="text-white font-bold text-lg">Vidya<span className="text-cyan-400">AI</span></span>
+            <span className="text-white font-bold text-lg">eduFinance<span className="text-cyan-400">AI</span></span>
           </div>
-          <p className="text-slate-500 text-sm">© 2025 VidyaAI. Empowering Indian students to achieve global excellence.</p>
+          <p className="text-slate-500 text-sm">© 2026 eduFinance. Empowering Indian students to achieve global excellence.</p>
           <div className="flex gap-4 text-slate-500 text-sm">
             <span className="hover:text-slate-300 cursor-pointer">Privacy</span>
             <span className="hover:text-slate-300 cursor-pointer">Terms</span>
