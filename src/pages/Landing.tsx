@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { GraduationCap, Brain, TrendingUp, Calculator, BarChart3, MessageCircle, Star, ArrowRight, Globe, IndianRupee, BookOpen, Users, Award, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, Brain, TrendingUp, BarChart3, MessageCircle, Star, ArrowRight, Globe, IndianRupee, BookOpen, Users, Award, ChevronRight, Sparkles, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 
 interface LandingProps {
