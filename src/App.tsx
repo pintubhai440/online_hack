@@ -19,7 +19,7 @@ function AppContent() {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-[3px] border-blue-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-slate-500 text-sm">Loading VidyaAI...</span>
+          <span className="text-slate-500 text-sm">Loading eduFinance...</span>
         </div>
       </div>
     );
