@@ -5,6 +5,7 @@ import { getUniversityRecommendations, formatUSD, BUDGET_TO_USD } from '../lib/c
 import { FIELDS, COUNTRIES, BUDGET_RANGES, COUNTRY_INSIGHTS } from '../lib/data';
 import type { UniversityRecommendation } from '../types';
 import { supabase } from '../lib/supabase';
+import { getUniversityData } from '../lib/gemini'; // 🧠 Naya Engine Import
 
 export default function CareerNavigator() {
   const { setCurrentPage, profile, user } = useApp();
@@ -23,6 +24,10 @@ export default function CareerNavigator() {
   });
 
   const [activeCountryTab, setActiveCountryTab] = useState<string | null>(null);
+
+  // 🧠 State Add Karo (The Brain's Short-term Memory)
+  const [rawAiData, setRawAiData] = useState<string>("");
+  const [isFetching, setIsFetching] = useState<boolean>(false);
 
   async function handleAnalyze() {
     setLoading(true);
@@ -54,6 +59,24 @@ export default function CareerNavigator() {
     });
     setSavedIds(s => new Set([...s, key]));
   }
+
+  // 🚀 The Ignition Switch (Button Click Logic)
+  const handleGenerateClick = async () => {
+    setIsFetching(true);
+    setRawAiData("AI is fetching live 2026 data from the internet..."); 
+
+    // Yeh prompt AI ko control karega taaki wo budget aur INR format follow kare
+    const promptText = `Act as an expert study abroad counselor. 
+    Find 2 real universities in the USA for MS in Computer Science for an Indian student with a budget of under 50 Lakhs INR. 
+    Provide the real 2026 tuition fees in INR and the next application deadline. 
+    Return the output STRICTLY as a JSON array of objects. Do not include markdown formatting or extra text.`;
+
+    // Engine se data le aao
+    const data = await getUniversityData(promptText);
+    
+    setRawAiData(data);
+    setIsFetching(false);
+  };
 
   const countriesToShow = form.targetCountries.length > 0 ? form.targetCountries : COUNTRIES.slice(0, 5);
 
@@ -126,10 +149,39 @@ export default function CareerNavigator() {
                   </div>
                 </div>
 
+                {/* Original App Form Submit Button */}
                 <button onClick={handleAnalyze} disabled={!form.targetField || loading}
                   className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
-                  {loading ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Analyzing your profile...</> : <><Sparkles className="w-4 h-4" />Generate AI Recommendations</>}
+                  {loading ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Analyzing your profile...</> : <><Sparkles className="w-4 h-4" />View Suggested Universities</>}
                 </button>
+
+                {/* 🔌 Live Engine Testing Section */}
+                <div className="pt-6 mt-4 border-t border-slate-100">
+                  <h3 className="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-purple-600" /> Live AI Engine Test
+                  </h3>
+                  
+                  {/* Button Se Wire Connect Karo */}
+                  <button 
+                    onClick={handleGenerateClick} 
+                    disabled={isFetching}
+                    className="w-full bg-slate-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isFetching ? "Analyzing Profile & Fetching Data..." : "Generate AI Recommendations (Live Fetch)"}
+                  </button>
+
+                  {/* Screen Par Data Dikhao (The Test Screen) */}
+                  {rawAiData && (
+                    <div className="mt-4 p-4 bg-slate-900 text-green-400 font-mono text-sm rounded-xl whitespace-pre-wrap overflow-x-auto shadow-inner border border-slate-800">
+                      <p className="text-white mb-2 font-bold flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                        Raw AI Data (Connection Test):
+                      </p>
+                      {rawAiData}
+                    </div>
+                  )}
+                </div>
+
               </div>
             </div>
 
