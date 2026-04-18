@@ -25,58 +25,66 @@ export default function CareerNavigator() {
 
   const [activeCountryTab, setActiveCountryTab] = useState<string | null>(null);
 
-  // 🧠 State Add Karo (The Brain's Short-term Memory)
-  const [rawAiData, setRawAiData] = useState<string>("");
-  const [isFetching, setIsFetching] = useState<boolean>(false);
-
   async function handleAnalyze() {
     setLoading(true);
-    await new Promise(r => setTimeout(r, 1500));
-    const budgetUSD = BUDGET_TO_USD[form.budgetRange] || 60000;
-    const recs = getUniversityRecommendations({
-      gpa: form.gpa > 4 ? form.gpa / 10 * 4 : form.gpa,
-      gre: form.gre,
-      targetField: form.targetField,
-      targetCountries: form.targetCountries,
-      budgetUSD,
-      workExp: form.workExp,
-    });
-    setResults(recs);
-    setStep('results');
-    setLoading(false);
+
+    // 1. Smart Prompt: Hum AI ko exactly wahi keys mangne ko bolenge jo tumhare UI cards ko chahiye
+    const targetCountry = form.targetCountries.length > 0 ? form.targetCountries[0] : 'USA';
+    const targetField = form.targetField || 'Computer Science';
+
+    const promptText = `Act as an expert study abroad counselor. 
+    Find 3 real universities for MS in ${targetField} in ${targetCountry} for an Indian student with ${form.gpa} GPA and a total budget of ${form.budgetRange || '50 Lakhs'}.
+    Return STRICTLY a JSON array of objects. Do NOT wrap in \`\`\`json markdown. Just return the array starting with [ and ending with ].
+    Use exactly these keys:
+    - "name": (University name, string)
+    - "country": (Country name, string)
+    - "program": (Course name, string)
+    - "matchScore": (A realistic match percentage between 60-95, number)
+    - "tuitionINR": (Annual tuition fee in Indian Rupees, write as a string like "₹25 Lakhs")
+    - "avgSalaryINR": (Average starting salary in Indian Rupees, write as a string like "₹80 Lakhs")
+    - "acceptanceRate": (Acceptance rate percentage, number only)
+    - "deadline": (Next real application deadline like "Dec 15, 2026", string)`;
+
+    try {
+      // 2. Engine se data laao
+      const rawData = await getUniversityData(promptText);
+
+      // 3. Kachhe data ki safai (Agar AI ne galti se ```json laga diya ho)
+      const cleanData = rawData.replace(/```json/gi, '').replace(/```/gi, '').trim();
+
+      // 4. "String to Thing" - Text ko JavaScript Object (Cards) mein badlo
+      const parsedResults = JSON.parse(cleanData);
+
+      // 5. Data ko UI mein dalo aur Cards wala page dikhao
+      setResults(parsedResults);
+      setStep('results'); 
+
+    } catch (error) {
+      console.error("AI Data parsing error:", error);
+      alert("Oops! AI ne thoda ajeeb data bheja. Ek baar fir se try karo.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  async function saveUniversity(uni: UniversityRecommendation) {
+  async function saveUniversity(uni: any) { // Type ko 'any' kar diya taaki naye keys read ho sakein
     if (!user) return;
     const key = `${uni.name}-${uni.country}`;
-    await supabase.from('saved_universities').insert({
-      user_id: user.id,
-      university_name: uni.name,
-      country: uni.country,
-      program: uni.program,
-      match_score: uni.matchScore,
-      tuition_usd: uni.tuitionUSD,
-    });
-    setSavedIds(s => new Set([...s, key]));
-  }
-
-  // 🚀 The Ignition Switch (Button Click Logic)
-  const handleGenerateClick = async () => {
-    setIsFetching(true);
-    setRawAiData("AI is fetching live 2026 data from the internet..."); 
-
-    // Yeh prompt AI ko control karega taaki wo budget aur INR format follow kare
-    const promptText = `Act as an expert study abroad counselor. 
-    Find 2 real universities in the USA for MS in Computer Science for an Indian student with a budget of under 50 Lakhs INR. 
-    Provide the real 2026 tuition fees in INR and the next application deadline. 
-    Return the output STRICTLY as a JSON array of objects. Do not include markdown formatting or extra text.`;
-
-    // Engine se data le aao
-    const data = await getUniversityData(promptText);
     
-    setRawAiData(data);
-    setIsFetching(false);
-  };
+    try {
+      await supabase.from('saved_universities').insert({
+        user_id: user.id,
+        university_name: uni.name,
+        country: uni.country,
+        program: uni.program,
+        match_score: uni.matchScore,
+        tuition_usd: 0, // Fallback safe number taaki DB crash na ho
+      });
+      setSavedIds(s => new Set([...s, key]));
+    } catch (err) {
+      console.error("Save error:", err);
+    }
+  }
 
   const countriesToShow = form.targetCountries.length > 0 ? form.targetCountries : COUNTRIES.slice(0, 5);
 
@@ -149,39 +157,10 @@ export default function CareerNavigator() {
                   </div>
                 </div>
 
-                {/* Original App Form Submit Button */}
                 <button onClick={handleAnalyze} disabled={!form.targetField || loading}
                   className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white font-bold rounded-xl transition-colors flex items-center justify-center gap-2">
                   {loading ? <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Analyzing your profile...</> : <><Sparkles className="w-4 h-4" />View Suggested Universities</>}
                 </button>
-
-                {/* 🔌 Live Engine Testing Section */}
-                <div className="pt-6 mt-4 border-t border-slate-100">
-                  <h3 className="font-bold text-slate-800 mb-3 text-sm flex items-center gap-2">
-                    <Brain className="w-4 h-4 text-purple-600" /> Live AI Engine Test
-                  </h3>
-                  
-                  {/* Button Se Wire Connect Karo */}
-                  <button 
-                    onClick={handleGenerateClick} 
-                    disabled={isFetching}
-                    className="w-full bg-slate-900 text-white font-bold py-3 px-4 rounded-xl hover:bg-slate-800 disabled:opacity-50 transition-all flex items-center justify-center gap-2"
-                  >
-                    {isFetching ? "Analyzing Profile & Fetching Data..." : "Generate AI Recommendations (Live Fetch)"}
-                  </button>
-
-                  {/* Screen Par Data Dikhao (The Test Screen) */}
-                  {rawAiData && (
-                    <div className="mt-4 p-4 bg-slate-900 text-green-400 font-mono text-sm rounded-xl whitespace-pre-wrap overflow-x-auto shadow-inner border border-slate-800">
-                      <p className="text-white mb-2 font-bold flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        Raw AI Data (Connection Test):
-                      </p>
-                      {rawAiData}
-                    </div>
-                  )}
-                </div>
-
               </div>
             </div>
 
@@ -264,13 +243,13 @@ export default function CareerNavigator() {
                       </div>
                       <div className="grid grid-cols-3 gap-3 mb-4">
                         <div className="text-center p-2 bg-slate-50 rounded-lg">
-                          <DollarSign className="w-4 h-4 text-slate-400 mx-auto mb-1" />
-                          <div className="text-xs font-semibold text-slate-700">{formatUSD(uni.tuitionUSD)}</div>
+                          <span className="text-slate-400 font-bold mx-auto mb-1 block">₹</span>
+                          <div className="text-xs font-semibold text-slate-700">{(uni as any).tuitionINR}</div>
                           <div className="text-xs text-slate-400">Tuition/yr</div>
                         </div>
                         <div className="text-center p-2 bg-slate-50 rounded-lg">
                           <TrendingUp className="w-4 h-4 text-slate-400 mx-auto mb-1" />
-                          <div className="text-xs font-semibold text-slate-700">{formatUSD(uni.avgSalaryUSD)}</div>
+                          <div className="text-xs font-semibold text-slate-700">{(uni as any).avgSalaryINR}</div>
                           <div className="text-xs text-slate-400">Avg salary</div>
                         </div>
                         <div className="text-center p-2 bg-slate-50 rounded-lg">
