@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Brain, TrendingUp, BarChart3, IndianRupee, MessageCircle, Globe, ChevronRight, GraduationCap, Target, CheckCircle2, AlertCircle, Pencil, Loader2, X } from 'lucide-react';
+import { Brain, TrendingUp, BarChart3, IndianRupee, MessageCircle, Globe, ChevronRight, GraduationCap, Target, CheckCircle2, AlertCircle, Pencil, Loader2, X, Flame, Award, Bell } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { supabase } from '../lib/supabase';
 import { FIELDS, COUNTRIES, BUDGET_RANGES } from '../lib/data';
@@ -23,7 +23,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (profile) setForm(profile);
     else if (!profile && user) setEditing(true);
-  }, [profile]);
+  }, [profile, user]);
 
   async function handleSave() {
     if (!user) return;
@@ -64,6 +64,55 @@ export default function Dashboard() {
           <button onClick={() => setEditing(true)} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 shadow-sm transition-colors">
             <Pencil className="w-4 h-4" /> Edit Profile
           </button>
+        </div>
+
+        {/* NAYA SECTION: Gamification, Streaks aur Rewards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* Daily Streak Card */}
+          <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-5 border border-orange-200 shadow-sm flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-5 h-5 text-orange-600 fill-orange-600" />
+                <span className="font-bold text-orange-900">
+                  {/* Yahan se real data aayega, agar nahi mila toh 0 dikhayega */}
+                  {profile?.current_streak || 0} Day Streak!
+                </span>
+              </div>
+              <p className="text-orange-700 text-xs">Log in tomorrow to keep it going</p>
+            </div>
+            <div className="text-2xl font-extrabold text-orange-600">🔥</div>
+          </div>
+
+          {/* Reward Points Card */}
+          <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-5 border border-purple-200 shadow-sm flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Award className="w-5 h-5 text-purple-600" />
+                <span className="font-bold text-purple-900">
+                  {/* Real Points yahan ayenge */}
+                  {profile?.reward_points || 0} EduPoints
+                </span>
+              </div>
+              <p className="text-purple-700 text-xs">Earn 50 more to unlock premium counselor chat</p>
+            </div>
+            <button className="text-xs bg-purple-600 text-white px-3 py-1.5 rounded-lg font-medium hover:bg-purple-700 transition-colors">
+              Redeem
+            </button>
+          </div>
+
+          {/* Smart Nudges / Notifications */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-start gap-3">
+            <div className="bg-blue-100 p-2 rounded-lg shrink-0">
+              <Bell className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <span className="text-sm font-bold text-slate-900 block mb-0.5">Action Required</span>
+              <p className="text-slate-500 text-xs">Your loan eligibility check is pending. Complete it to discover top NBFC offers.</p>
+              <button onClick={() => setCurrentPage('loan')} className="text-blue-600 text-xs font-semibold mt-2 hover:underline">
+                Check Now &rarr;
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Profile Completion */}
