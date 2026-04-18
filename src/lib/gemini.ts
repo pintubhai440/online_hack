@@ -10,7 +10,7 @@ const genAI = new GoogleGenerativeAI(apiKey);
 export async function getUniversityData(promptText: string) {
   try {
     // Hum fast aur smart model use kar rahe hain
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite" });
     
     const result = await model.generateContent(promptText);
     const response = await result.response;
