@@ -52,6 +52,43 @@ export default function Dashboard() {
   const completion = profile?.profile_completion || calculateCompletion(form);
   const displayName = profile?.full_name || user?.email?.split('@')[0] || 'Student';
 
+  // 🧠 STEP 1: The Brain (Next Best Action Logic)
+  const getSmartNudge = () => {
+    // Stage 1: Agar profile 50% se kam hai
+    if (completion < 50) {
+      return {
+        title: "Profile Incomplete",
+        desc: "Complete your basic details to unlock AI recommendations and earn 50 EduPoints.",
+        btnText: "Complete Profile",
+        action: () => setEditing(true),
+        iconColor: "text-amber-600",
+        bgColor: "bg-amber-100"
+      };
+    }
+    // Stage 2: Agar goal set nahi hai
+    if (!profile?.target_field || !profile?.target_countries?.length) {
+       return {
+        title: "Set Your Goals",
+        desc: "Tell us what and where you want to study so our AI can find the best matches.",
+        btnText: "Set Goals",
+        action: () => setEditing(true),
+        iconColor: "text-blue-600",
+        bgColor: "bg-blue-100"
+      };
+    }
+    // Stage 3: Agar sab set hai, toh final goal (Loan) ki taraf push karo
+    return {
+      title: "Action Required",
+      desc: "Your loan eligibility check is pending. Complete it to discover top NBFC offers.",
+      btnText: "Check Now →",
+      action: () => setCurrentPage('loan'),
+      iconColor: "text-emerald-600",
+      bgColor: "bg-emerald-100"
+    };
+  };
+
+  const currentNudge = getSmartNudge();
+
   return (
     <div className="min-h-screen bg-slate-50 pt-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -101,15 +138,18 @@ export default function Dashboard() {
           </div>
 
           {/* Smart Nudges / Notifications */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-start gap-3">
-            <div className="bg-blue-100 p-2 rounded-lg shrink-0">
-              <Bell className="w-5 h-5 text-blue-600" />
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex items-start gap-3 transition-all hover:shadow-md">
+            <div className={`${currentNudge.bgColor} p-2 rounded-lg shrink-0`}>
+              <Bell className={`w-5 h-5 ${currentNudge.iconColor}`} />
             </div>
             <div>
-              <span className="text-sm font-bold text-slate-900 block mb-0.5">Action Required</span>
-              <p className="text-slate-500 text-xs">Your loan eligibility check is pending. Complete it to discover top NBFC offers.</p>
-              <button onClick={() => setCurrentPage('loan')} className="text-blue-600 text-xs font-semibold mt-2 hover:underline">
-                Check Now &rarr;
+              <span className="text-sm font-bold text-slate-900 block mb-0.5">{currentNudge.title}</span>
+              <p className="text-slate-500 text-xs">{currentNudge.desc}</p>
+              <button 
+                onClick={currentNudge.action} 
+                className={`${currentNudge.iconColor.replace('text', 'text')} text-xs font-bold mt-2 hover:underline transition-all`}
+              >
+                {currentNudge.btnText}
               </button>
             </div>
           </div>
