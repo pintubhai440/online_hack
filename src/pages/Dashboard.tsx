@@ -25,6 +25,51 @@ export default function Dashboard() {
     else if (!profile && user) setEditing(true);
   }, [profile, user]);
 
+  // 🕒 INVISIBLE STREAK CHECKER
+  useEffect(() => {
+    async function checkStreak() {
+      if (!profile || !user) return;
+
+      // Aaj ki date nikalo (e.g., "2023-10-25")
+      const today = new Date().toISOString().split('T')[0];
+      // Note: Make sure 'last_login_date' is added to your StudentProfile type in types.ts!
+      const lastLogin = (profile as any).last_login_date?.split('T')[0];
+
+      // Agar user aaj pehli baar login kar raha hai (ya purana din hai)
+      if (lastLogin !== today) {
+        let newStreak = profile.current_streak || 0;
+
+        if (lastLogin) {
+          // Check karo kitne din ka gap hai
+          const lastDate = new Date(lastLogin);
+          const currentDate = new Date(today);
+          const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+          if (diffDays === 1) {
+            newStreak += 1; // Sahi time pe aaya, streak badhao! 🔥
+          } else if (diffDays > 1) {
+            newStreak = 1; // Streak toot gayi, wapas 1 se shuru 😢
+          }
+        } else {
+          newStreak = 1; // Zindagi ka pehla login
+        }
+
+        // Database mein naya streak aur aaj ki date save kar do
+        await supabase.from('student_profiles').upsert({
+          user_id: user.id,
+          current_streak: newStreak,
+          last_login_date: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id' });
+
+        refreshProfile(); // UI ko update kar do
+      }
+    }
+
+    checkStreak();
+  }, [profile, user, refreshProfile]);
+
   async function handleSave() {
     if (!user) return;
     setSaving(true);
@@ -192,7 +237,7 @@ export default function Dashboard() {
           {[
             { label: 'Target Countries', value: profile?.target_countries?.length || 0, suffix: ' selected', icon: Globe },
             { label: 'Target Field', value: profile?.target_field ? 1 : 0, suffix: profile?.target_field ? '' : ' not set', text: profile?.target_field?.split('/')[0]?.trim() || 'Not set', icon: GraduationCap },
-            { label: 'GPA', value: profile?.gpa || 0, suffix: '/10.0', icon: Target },
+            { label: 'GPA', value: profile?.gpa || 0, suffix: '/4.0', icon: Target },
             { label: 'Budget Range', value: null, text: profile?.budget_range || 'Not set', icon: IndianRupee },
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
