@@ -28,52 +28,42 @@ export default function CareerNavigator() {
   async function handleAnalyze() {
     setLoading(true);
 
-    // 1. SMART LIST FIX: Ab hum [0] nahi le rahe, hum list ko jod kar ek sentence bana rahe hain.
-    // Agar user ne select kiya toh "USA, UK, France" banega. Nahi kiya toh global top 5 banega.
+    // 1. Target Countries List
     const targetCountriesList = form.targetCountries.length > 0 
       ? form.targetCountries.join(', ') 
-      : 'USA, UK, Canada, Australia, Germany';
+      : 'USA, UK, Canada, Australia, Germany'; // Default list
       
     const targetField = form.targetField || 'Computer Science';
 
-    // 2. UPDATED PROMPT: AI ko specifically 'diverse mix' aur 'No India' ka instruction diya.
+    // 2. THE "FIXED 12" MASTER PROMPT WITH DATA VALIDATION
     const promptText = `Act as an expert study abroad counselor. 
-    Find 4 real universities for MS in ${targetField} in the following countries: ${targetCountriesList}.
-    Student profile: Indian student with ${form.gpa} GPA and a total budget of ${form.budgetRange || '50 Lakhs'}.
-    
-    CRITICAL RULES:
-    1. Include a diverse mix of countries from the provided list.
-    2. Do NOT include any universities from India.
-    3. Respect the budget strictly.
+    Target Countries: ${targetCountriesList}.
+    Field: MS in ${targetField}. 
+    Student GPA: ${form.gpa}. Budget: ${form.budgetRange || '50 Lakhs'}.
 
-    Return STRICTLY a JSON array of objects. Do NOT wrap in \`\`\`json markdown. Just return the array starting with [ and ending with ].
-    Use exactly these keys:
-    - "name": (University name, string)
-    - "country": (Country name, string)
-    - "program": (Course name, string)
-    - "matchScore": (A realistic match percentage between 60-95, number)
-    - "tuitionINR": (Annual tuition fee in Indian Rupees, write as a string like "₹25 Lakhs")
-    - "avgSalaryINR": (Average starting salary in Indian Rupees, write as a string like "₹80 Lakhs")
-    - "acceptanceRate": (Acceptance rate percentage, number only)
-    - "deadline": (Next real application deadline like "Dec 15, 2026", string)`;
+    CRITICAL INSTRUCTIONS FOR TRUTH-DATA:
+    1. COUNT: Return exactly 12 university objects.
+    2. DEADLINES (2026 Intake):
+       - For Fall 2026 intake (USA/UK/Canada/Ireland), deadlines are usually between Dec 2025 and March 2026. Use these real-world ranges.
+       - For Germany (Winter 2026), deadlines are usually May-July 2026.
+       - For Australia/NZ (Feb 2026 intake), deadlines are often late 2025.
+       - IMPORTANT: Do NOT invent a "July 2026" deadline for a US university if the real one is Jan 2026.
+    3. FORMAT: "deadline" must be a string like "Jan 15, 2026" or "Rolling (until May 2026)".
+    4. CURRENCY: Ensure tuitionINR and avgSalaryINR are in ₹ Lakhs as requested before.
+
+    Return STRICTLY a JSON array of objects. Do NOT wrap in \`\`\`json markdown.
+    Keys: "name", "country", "program", "matchScore", "tuitionINR", "avgSalaryINR", "acceptanceRate", "deadline"`;
 
     try {
-      // 2. Engine se data laao
       const rawData = await getUniversityData(promptText);
-
-      // 3. Kachhe data ki safai (Agar AI ne galti se ```json laga diya ho)
       const cleanData = rawData.replace(/```json/gi, '').replace(/```/gi, '').trim();
-
-      // 4. "String to Thing" - Text ko JavaScript Object (Cards) mein badlo
       const parsedResults = JSON.parse(cleanData);
-
-      // 5. Data ko UI mein dalo aur Cards wala page dikhao
+      
       setResults(parsedResults);
       setStep('results'); 
-
     } catch (error) {
       console.error("AI Data parsing error:", error);
-      alert("Oops! AI ne thoda ajeeb data bheja. Ek baar fir se try karo.");
+      alert("Oops! AI engine is recalibrating. Please try again in a few seconds.");
     } finally {
       setLoading(false);
     }
