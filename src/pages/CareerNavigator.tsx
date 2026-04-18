@@ -28,12 +28,24 @@ export default function CareerNavigator() {
   async function handleAnalyze() {
     setLoading(true);
 
-    // 1. Smart Prompt: Hum AI ko exactly wahi keys mangne ko bolenge jo tumhare UI cards ko chahiye
-    const targetCountry = form.targetCountries.length > 0 ? form.targetCountries[0] : 'USA';
+    // 1. SMART LIST FIX: Ab hum [0] nahi le rahe, hum list ko jod kar ek sentence bana rahe hain.
+    // Agar user ne select kiya toh "USA, UK, France" banega. Nahi kiya toh global top 5 banega.
+    const targetCountriesList = form.targetCountries.length > 0 
+      ? form.targetCountries.join(', ') 
+      : 'USA, UK, Canada, Australia, Germany';
+      
     const targetField = form.targetField || 'Computer Science';
 
+    // 2. UPDATED PROMPT: AI ko specifically 'diverse mix' aur 'No India' ka instruction diya.
     const promptText = `Act as an expert study abroad counselor. 
-    Find 3 real universities for MS in ${targetField} in ${targetCountry} for an Indian student with ${form.gpa} GPA and a total budget of ${form.budgetRange || '50 Lakhs'}.
+    Find 4 real universities for MS in ${targetField} in the following countries: ${targetCountriesList}.
+    Student profile: Indian student with ${form.gpa} GPA and a total budget of ${form.budgetRange || '50 Lakhs'}.
+    
+    CRITICAL RULES:
+    1. Include a diverse mix of countries from the provided list.
+    2. Do NOT include any universities from India.
+    3. Respect the budget strictly.
+
     Return STRICTLY a JSON array of objects. Do NOT wrap in \`\`\`json markdown. Just return the array starting with [ and ending with ].
     Use exactly these keys:
     - "name": (University name, string)
