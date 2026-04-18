@@ -1,4 +1,9 @@
-export const COUNTRIES = ['USA', 'UK', 'Canada', 'Australia', 'Germany', 'Singapore', 'Ireland', 'Netherlands', 'New Zealand', 'France'];
+// src/lib/data.ts
+
+export const COUNTRIES = [
+  'USA', 'UK', 'Canada', 'Australia', 'Germany', 
+  'Singapore', 'Ireland', 'Netherlands', 'New Zealand', 'France'
+];
 
 export const FIELDS = [
   'Computer Science / AI / ML',
