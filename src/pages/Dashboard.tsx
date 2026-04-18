@@ -142,11 +142,13 @@ export default function Dashboard() {
             {/* Notification Icon Container with Badge */}
             <div className={`${currentNudge.bgColor} p-2 rounded-lg shrink-0 relative`}>
               <Bell className={`w-5 h-5 ${currentNudge.iconColor}`} />
-              {/* Dynamic Notification Badge */}
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 items-center justify-center text-[10px] font-bold text-white ring-2 ring-white">1</span>
-              </span>
+              {/* Dynamic Notification Badge (Agar 100% complete nahi hai, tabhi dikhega) */}
+              {completion < 100 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 items-center justify-center text-[10px] font-bold text-white ring-2 ring-white">1</span>
+                </span>
+              )}
             </div>
             <div>
               <span className="text-sm font-bold text-slate-900 block mb-0.5">{currentNudge.title}</span>
