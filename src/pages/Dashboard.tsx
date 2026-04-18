@@ -237,7 +237,7 @@ export default function Dashboard() {
           {[
             { label: 'Target Countries', value: profile?.target_countries?.length || 0, suffix: ' selected', icon: Globe },
             { label: 'Target Field', value: profile?.target_field ? 1 : 0, suffix: profile?.target_field ? '' : ' not set', text: profile?.target_field?.split('/')[0]?.trim() || 'Not set', icon: GraduationCap },
-            { label: 'GPA', value: profile?.gpa || 0, suffix: '/4.0', icon: Target },
+            { label: 'GPA', value: profile?.gpa || 0, suffix: '/10.0', icon: Target },
             { label: 'Budget Range', value: null, text: profile?.budget_range || 'Not set', icon: IndianRupee },
           ].map((s, i) => (
             <div key={i} className="bg-white rounded-xl p-4 border border-slate-100 shadow-sm">
