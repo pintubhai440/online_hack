@@ -35,20 +35,23 @@ export default function CareerNavigator() {
       
     const targetField = form.targetField || 'Computer Science';
 
-    // 2. THE "FIXED 12" MASTER PROMPT WITH DATA VALIDATION
-    const promptText = `Act as an expert study abroad counselor. 
+    // 2. THE "FIXED 12" MASTER PROMPT WITH HACKATHON PROBLEM STATEMENT INTEGRATION
+    const promptText = `Act as an expert AI counselor for a Unified Student Engagement Ecosystem. 
+    Target Audience: Indian student (undergrad/young professional) planning postgraduate studies.
     Target Countries: ${targetCountriesList}.
     Field: MS in ${targetField}. 
-    Student GPA: ${form.gpa}. Budget: ${form.budgetRange || '50 Lakhs'}.
+    Student GPA: ${form.gpa} (out of 4.0 or 10.0). Work Experience: ${form.workExp} years. Budget: ${form.budgetRange || '50 Lakhs'}.
+
+    Personalize the recommendations to maximize student engagement and trust. Ensure a realistic mix of aspirational, target, and safe universities based on their specific profile.
 
     CRITICAL INSTRUCTIONS FOR TRUTH-DATA:
-    1. COUNT: Return exactly 12 university objects.
+    1. COUNT: Return exactly 12 university objects tailored to this specific Indian student persona.
     2. FORMATTING RULES (VERY STRICT):
        - "tuitionINR": Return ONLY a number representing Lakhs (e.g., 18). Do NOT add text.
        - "avgSalaryINR": Return ONLY a number representing Lakhs (e.g., 58). Do NOT add text.
        - "acceptanceRate": MUST BE AN INTEGER NUMBER between 1 and 100 (e.g., 45). Do NOT use words like "medium", "high", or ranges.
        - "deadline": String like "Jan 15, 2026".
-       - "matchScore": Number between 50 and 99.
+       - "matchScore": Number between 50 and 99. Calculate this intelligently based on the student's GPA (${form.gpa}) and Work Exp (${form.workExp}) vs university requirements to show deep personalization.
 
     Return STRICTLY a JSON array of objects. Do NOT wrap in \`\`\`json markdown.
     Keys: "name", "country", "program", "matchScore", "tuitionINR", "avgSalaryINR", "acceptanceRate", "deadline"`;
