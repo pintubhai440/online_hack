@@ -182,7 +182,7 @@ export default function CareerNavigator() {
                       <div key={c} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
                         <span className="text-sm font-medium text-slate-700">{c}</span>
                         <div className="text-right">
-                          <div className="text-xs text-slate-500">~${(info.avgCostUSD / 1000).toFixed(0)}k/yr</div>
+                          <div className="text-xs text-slate-500">~₹{((info.avgCostUSD * 83.5) / 100000).toFixed(1)} Lakh/yr</div>
                           <div className="text-xs text-emerald-600 font-medium">PR: {info.prScore.split('(')[0].trim()}</div>
                         </div>
                       </div>
@@ -293,8 +293,8 @@ export default function CareerNavigator() {
                         <span className="font-bold text-slate-900">{c}</span>
                       </div>
                       <div className="space-y-1.5 text-sm">
-                        <div className="flex justify-between"><span className="text-slate-500">Avg tuition</span><span className="font-medium text-slate-700">${(info.avgCostUSD / 1000).toFixed(0)}k/yr</span></div>
-                        <div className="flex justify-between"><span className="text-slate-500">Avg salary</span><span className="font-medium text-slate-700">${(info.avgSalaryUSD / 1000).toFixed(0)}k/yr</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Avg tuition</span><span className="font-medium text-slate-700">₹{((info.avgCostUSD * 83.5) / 100000).toFixed(1)} Lakh/yr</span></div>
+                        <div className="flex justify-between"><span className="text-slate-500">Avg salary</span><span className="font-medium text-slate-700">₹{((info.avgSalaryUSD * 83.5) / 100000).toFixed(1)} Lakh/yr</span></div>
                         <div className="flex justify-between"><span className="text-slate-500">PR pathway</span><span className="font-medium text-emerald-600">{info.prScore.split('(')[0].trim()}</span></div>
                         <div className="flex justify-between"><span className="text-slate-500">Indian students</span><span className="font-medium text-slate-700">{(info.indianStudents / 1000).toFixed(0)}k+</span></div>
                       </div>
