@@ -43,13 +43,12 @@ export default function CareerNavigator() {
 
     CRITICAL INSTRUCTIONS FOR TRUTH-DATA:
     1. COUNT: Return exactly 12 university objects.
-    2. DEADLINES (2026 Intake):
-       - For Fall 2026 intake (USA/UK/Canada/Ireland), deadlines are usually between Dec 2025 and March 2026. Use these real-world ranges.
-       - For Germany (Winter 2026), deadlines are usually May-July 2026.
-       - For Australia/NZ (Feb 2026 intake), deadlines are often late 2025.
-       - IMPORTANT: Do NOT invent a "July 2026" deadline for a US university if the real one is Jan 2026.
-    3. FORMAT: "deadline" must be a string like "Jan 15, 2026" or "Rolling (until May 2026)".
-    4. CURRENCY: Ensure tuitionINR and avgSalaryINR are in ₹ Lakhs as requested before.
+    2. FORMATTING RULES (VERY STRICT):
+       - "tuitionINR": Return ONLY a number representing Lakhs (e.g., 18). Do NOT add text.
+       - "avgSalaryINR": Return ONLY a number representing Lakhs (e.g., 58). Do NOT add text.
+       - "acceptanceRate": MUST BE AN INTEGER NUMBER between 1 and 100 (e.g., 45). Do NOT use words like "medium", "high", or ranges.
+       - "deadline": String like "Jan 15, 2026".
+       - "matchScore": Number between 50 and 99.
 
     Return STRICTLY a JSON array of objects. Do NOT wrap in \`\`\`json markdown.
     Keys: "name", "country", "program", "matchScore", "tuitionINR", "avgSalaryINR", "acceptanceRate", "deadline"`;
@@ -246,17 +245,21 @@ export default function CareerNavigator() {
                       <div className="grid grid-cols-3 gap-3 mb-4">
                         <div className="text-center p-2 bg-slate-50 rounded-lg">
                           <span className="text-slate-400 font-bold mx-auto mb-1 block">₹</span>
-                          <div className="text-xs font-semibold text-slate-700">{(uni as any).tuitionINR}</div>
+                          <div className="text-xs font-semibold text-slate-700">{String((uni as any).tuitionINR).replace(/lakhs?/i, '').trim()} Lakhs</div>
                           <div className="text-xs text-slate-400">Tuition/yr</div>
                         </div>
                         <div className="text-center p-2 bg-slate-50 rounded-lg">
                           <TrendingUp className="w-4 h-4 text-slate-400 mx-auto mb-1" />
-                          <div className="text-xs font-semibold text-slate-700">{(uni as any).avgSalaryINR}</div>
+                          <div className="text-xs font-semibold text-slate-700">{String((uni as any).avgSalaryINR).replace(/lakhs?/i, '').trim()} Lakhs</div>
                           <div className="text-xs text-slate-400">Avg salary</div>
                         </div>
                         <div className="text-center p-2 bg-slate-50 rounded-lg">
                           <Users className="w-4 h-4 text-slate-400 mx-auto mb-1" />
-                          <div className="text-xs font-semibold text-slate-700">{uni.acceptanceRate}%</div>
+                          <div className="text-xs font-semibold text-slate-700">
+                            {typeof uni.acceptanceRate === 'number' || !isNaN(Number(uni.acceptanceRate)) 
+                              ? `${String(uni.acceptanceRate).replace(/[^0-9]/g, '')}%` 
+                              : 'N/A'}
+                          </div>
                           <div className="text-xs text-slate-400">Accept rate</div>
                         </div>
                       </div>
