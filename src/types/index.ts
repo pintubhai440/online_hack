@@ -23,6 +23,7 @@ export interface StudentProfile {
   // Naye variables jo aapne add karne bole the
   current_streak?: number;
   reward_points?: number;
+  last_login_date?: string; // 👈 Nayi line
 }
 
 export interface UniversityRecommendation {
