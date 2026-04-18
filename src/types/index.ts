@@ -19,6 +19,10 @@ export interface StudentProfile {
   work_experience_years: number;
   profile_completion: number;
   onboarding_completed: boolean;
+  
+  // Naye variables jo aapne add karne bole the
+  current_streak?: number;
+  reward_points?: number;
 }
 
 export interface UniversityRecommendation {
