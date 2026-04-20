@@ -121,6 +121,11 @@ const PROGRAMS: ProgramData[] = [
   }
 ];
 
+// --- Vercel Environment se Multi-Key Logic ---
+const apiKeysString = import.meta.env.VITE_GEMINI_API_KEY || "";
+const apiKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
+let currentKeyIndex = 0;
+
 export default function App() {
   const handleNavigation = (page: string) => {
       console.log(`Navigating to ${page}... (Navigation Mocked)`);
@@ -153,7 +158,12 @@ export default function App() {
     setAiError(null);
     setCalculated(false);
 
-    const apiKey = ""; // API Key environment se inject hogi
+    if (apiKeys.length === 0) {
+      setAiError("Koi API key nahi mili Vercel environment mein.");
+      setIsAILoading(false);
+      return;
+    }
+
     const delays = [1000, 2000, 4000, 8000, 16000];
     const promptText = `Act as an expert education counselor. Provide realistic and average financial estimates for a student pursuing: "${courseName}" in "${country}". 
     Return the values strictly as JSON. All currency values MUST be in USD (US Dollars), even if the country is India or UK.
@@ -183,7 +193,8 @@ export default function App() {
 
     for (let i = 0; i < delays.length; i++) {
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+        const currentApiKey = apiKeys[currentKeyIndex];
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${currentApiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -205,11 +216,17 @@ export default function App() {
           return; // Success
         }
       } catch (err) {
+        console.warn(`API Key ${currentKeyIndex + 1} fail ho gayi. Shifting to next...`);
+        // Shift to the next key automatically
+        currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
+
         if (i === delays.length - 1) {
-          setAiError('Bhai, AI data fetch karne mein error aa gaya. Kripya manually enter karein.');
+          setAiError('Bhai, saari API keys ya attempts fail ho gaye. Kripya manually enter karein.');
           setIsAILoading(false);
+        } else {
+          // Retry hone se pehle thoda delay (Exponential Backoff)
+          await new Promise(r => setTimeout(r, delays[i]));
         }
-        await new Promise(r => setTimeout(r, delays[i]));
       }
     }
   };
