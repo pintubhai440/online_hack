@@ -11,12 +11,10 @@ import {
   ChevronLeft,
   Clock,
   BarChart2,
-  IndianRupee
+  IndianRupee,
+  Sparkles,
+  Loader2
 } from 'lucide-react';
-// Error ko theek karne ke liye, Maine AppContext import ko nikal diya. 
-// Main assumes the page navigation is handled outside or differently if we are running as a single standalone file here.
-// Agar aapko `setCurrentPage` chahiye, toh aapko AppContext provide karna hoga. 
-// Abhi ke liye, main navigation ke functions ko mock kar raha hu.
 
 // Mock format functions
 const formatINR = (amount: number) => {
@@ -35,7 +33,7 @@ const formatUSD = (amount: number) => {
 };
 
 // Assuming 1 USD = 83.5 INR for fixed conversion
-const USD_TO_INR = 83.5;
+const USD_TO_INR = 93.0;
 
 // --- Types & Interfaces ---
 interface ProgramData {
@@ -45,11 +43,11 @@ interface ProgramData {
   baseTuitionUSD: number;
   baseLivingUSD: number;
   expectedCTCUSD: number;
-  taxRate: number; // Real life tax assumption
-  postGradLivingCostUSD: number; // Har saal rehne ka kharcha job lagne ke baad
+  taxRate: number; 
+  postGradLivingCostUSD: number; 
 }
 
-// --- Mock Database (Real-life approximate data) ---
+// --- Mock Database (Real-life approximate data as fallback) ---
 const PROGRAMS: ProgramData[] = [
   {
     id: 'ms_cs_us',
@@ -58,8 +56,8 @@ const PROGRAMS: ProgramData[] = [
     baseTuitionUSD: 50000,
     baseLivingUSD: 24000,
     expectedCTCUSD: 110000,
-    taxRate: 0.30, // 30% Federal + State Tax
-    postGradLivingCostUSD: 30000, // Rent, food, car etc. in tech hubs
+    taxRate: 0.30, 
+    postGradLivingCostUSD: 30000, 
   },
   {
     id: 'mba_us',
@@ -105,45 +103,146 @@ const PROGRAMS: ProgramData[] = [
     id: 'mba_in',
     name: 'MBA (IIM A/B/C)',
     country: 'India',
-    baseTuitionUSD: 18000, // Equivalent in USD for simple calculation
+    baseTuitionUSD: 18000, 
     baseLivingUSD: 6000,
     expectedCTCUSD: 55000, 
     taxRate: 0.30,
     postGradLivingCostUSD: 12000, 
+  },
+  {
+    id: 'custom',
+    name: 'Custom Program (AI Fetched)',
+    country: 'Any',
+    baseTuitionUSD: 0,
+    baseLivingUSD: 0,
+    expectedCTCUSD: 0,
+    taxRate: 0.30,
+    postGradLivingCostUSD: 0
   }
 ];
 
 export default function App() {
-  // Navigation mock: If this component is supposed to be integrated inside a larger app, 
-  // you might pass setCurrentPage as a prop instead.
   const handleNavigation = (page: string) => {
       console.log(`Navigating to ${page}... (Navigation Mocked)`);
   }
 
   const [selectedProgramIdx, setSelectedProgramIdx] = useState<number>(0);
+  
+  // Dynamic State variables
   const [tuitionUSD, setTuitionUSD] = useState<number>(50000);
   const [livingUSD, setLivingUSD] = useState<number>(24000);
   const [durationYears, setDurationYears] = useState<number>(2);
   const [salaryUSD, setSalaryUSD] = useState<number>(110000);
+  const [currentTaxRate, setCurrentTaxRate] = useState<number>(0.30);
+  const [currentPostGradLivingCost, setCurrentPostGradLivingCost] = useState<number>(30000);
+  
   const [loanPercent, setLoanPercent] = useState<number>(80);
-  const [interestRate, setInterestRate] = useState<number>(10.5); // 10.5% average edu loan
+  const [interestRate, setInterestRate] = useState<number>(10.5); 
   const [showReality, setShowReality] = useState<boolean>(true);
   const [calculated, setCalculated] = useState(false);
 
-  const currentProgram = PROGRAMS[selectedProgramIdx];
+  // AI & Custom Program States
+  const [isAILoading, setIsAILoading] = useState<boolean>(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [customCourseName, setCustomCourseName] = useState<string>('');
+  const [customCountryName, setCustomCountryName] = useState<string>('');
 
-  function handleProgramChange(idx: number) {
+  // Gemini API integration for Dynamic Fetching
+  const fetchAIData = async (courseName: string, country: string) => {
+    setIsAILoading(true);
+    setAiError(null);
+    setCalculated(false);
+
+    const apiKey = ""; // API Key environment se inject hogi
+    const delays = [1000, 2000, 4000, 8000, 16000];
+    const promptText = `Act as an expert education counselor. Provide realistic and average financial estimates for a student pursuing: "${courseName}" in "${country}". 
+    Return the values strictly as JSON. All currency values MUST be in USD (US Dollars), even if the country is India or UK.
+    Provide realistic values for:
+    - tuitionUSD: Annual tuition fee in USD
+    - livingUSD: Annual living expenses for a student in USD
+    - salaryUSD: Expected starting salary after graduation in USD
+    - taxRate: Average income tax rate in that country for that salary bracket (as a decimal, e.g. 0.30 for 30%)
+    - postGradLivingCostUSD: Annual living expenses for a working professional after graduation in USD`;
+
+    const payload = {
+      contents: [{ parts: [{ text: promptText }] }],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "OBJECT",
+          properties: {
+            tuitionUSD: { type: "INTEGER" },
+            livingUSD: { type: "INTEGER" },
+            salaryUSD: { type: "INTEGER" },
+            taxRate: { type: "NUMBER" },
+            postGradLivingCostUSD: { type: "INTEGER" }
+          }
+        }
+      }
+    };
+
+    for (let i = 0; i < delays.length; i++) {
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) throw new Error('AI API failed');
+        
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        if (text) {
+          const result = JSON.parse(text);
+          setTuitionUSD(result.tuitionUSD);
+          setLivingUSD(result.livingUSD);
+          setSalaryUSD(result.salaryUSD);
+          setCurrentTaxRate(result.taxRate);
+          setCurrentPostGradLivingCost(result.postGradLivingCostUSD);
+          setIsAILoading(false);
+          return; // Success
+        }
+      } catch (err) {
+        if (i === delays.length - 1) {
+          setAiError('Bhai, AI data fetch karne mein error aa gaya. Kripya manually enter karein.');
+          setIsAILoading(false);
+        }
+        await new Promise(r => setTimeout(r, delays[i]));
+      }
+    }
+  };
+
+  const handleProgramChange = (idx: number) => {
     setSelectedProgramIdx(idx);
     const p = PROGRAMS[idx];
-    setTuitionUSD(p.baseTuitionUSD);
-    setLivingUSD(p.baseLivingUSD);
-    setSalaryUSD(p.expectedCTCUSD);
     setCalculated(false);
-  }
+    setAiError(null);
+
+    if (p.id === 'custom') {
+      // Custom program ke case me hum values reset kar dete hain, user AI fetch button dabayega
+      setTuitionUSD(0);
+      setLivingUSD(0);
+      setSalaryUSD(0);
+      setCurrentTaxRate(0.30);
+      setCurrentPostGradLivingCost(0);
+    } else {
+      // Normal program select karne pe AI se dynamic data fetch karo
+      fetchAIData(p.name, p.country);
+    }
+  };
+
+  const handleCustomFetch = () => {
+    if (customCourseName && customCountryName) {
+      fetchAIData(customCourseName, customCountryName);
+    } else {
+      setAiError('Bhai, course aur country dono enter karo AI analysis ke liye.');
+    }
+  };
 
   // --- Calculations Logic ---
   const stats = useMemo(() => {
-    // Basic Costs
     const totalCostUSD = (tuitionUSD + livingUSD) * durationYears;
     const totalCostINR = totalCostUSD * USD_TO_INR;
     
@@ -152,23 +251,22 @@ export default function App() {
     
     const outOfPocketINR = totalCostINR - loanAmountINR;
 
-    // Padhai ke time ka interest (Moratorium period) - REALITY CHECK
+    // Moratorium period interest - REALITY CHECK
     const moratoriumInterestINR = loanAmountINR * (interestRate / 100) * durationYears; 
     const debtAtGraduationINR = loanAmountINR + moratoriumInterestINR;
 
-    // Asli Kamai (Real-life CTC vs In-hand) in INR
+    // Real-life CTC vs In-hand in INR
     const expectedCTCINR = salaryUSD * USD_TO_INR;
-    const taxDeductionINR = expectedCTCINR * currentProgram.taxRate;
+    const taxDeductionINR = expectedCTCINR * currentTaxRate;
     const inHandSalaryINR = expectedCTCINR - taxDeductionINR;
     
-    const postGradLivingCostINR = currentProgram.postGradLivingCostUSD * USD_TO_INR;
+    const postGradLivingCostINR = currentPostGradLivingCost * USD_TO_INR;
     const disposableIncomeINR = inHandSalaryINR - postGradLivingCostINR;
 
-    // EMI Calculation (Standard 10 saal ke liye)
+    // EMI Calculation (10 years)
     const monthlyRate = (interestRate / 100) / 12;
     const months = 10 * 12;
     
-    // Standard EMI formula: P * r * (1 + r)^n / ((1 + r)^n - 1)
     let emiINR = 0;
     if (debtAtGraduationINR > 0) {
         const top = debtAtGraduationINR * monthlyRate * Math.pow(1 + monthlyRate, months);
@@ -177,22 +275,13 @@ export default function App() {
     }
     const yearlyEMI_INR = emiINR * 12;
 
-    // Net Savings (Jo paisa sach mein bank mein bachega EMI ke baad)
     const netSavingsINR = disposableIncomeINR - yearlyEMI_INR;
 
-    // Payback Period (Reality vs Marketing)
-    // Marketing: Total Cost / Total CTC (Galat tarika)
-    const marketingPayback = (totalCostINR / expectedCTCINR).toFixed(1);
-    
-    // Reality: Total Debt / Disposable Income (Sahi tarika)
+    // Payback Period
+    const marketingPayback = expectedCTCINR > 0 ? (totalCostINR / expectedCTCINR).toFixed(1) : "N/A";
     const realPayback = disposableIncomeINR > 0 
       ? (debtAtGraduationINR / (disposableIncomeINR > yearlyEMI_INR ? yearlyEMI_INR + netSavingsINR : disposableIncomeINR)).toFixed(1)
       : "Never";
-
-    // 10-Year ROI (Very Simplified)
-    const totalReturns10Yrs = (netSavingsINR * 10);
-    const tenYearNetGainINR = totalReturns10Yrs - outOfPocketINR; 
-    const roiPercentage = outOfPocketINR > 0 ? (tenYearNetGainINR / outOfPocketINR) * 100 : 999;
 
     return {
       totalCostUSD,
@@ -209,11 +298,9 @@ export default function App() {
       emiMonthly: emiINR,
       netSavingsINR,
       marketingPayback,
-      realPayback,
-      tenYearNetGainINR,
-      roiPercentage
+      realPayback
     };
-  }, [currentProgram, tuitionUSD, livingUSD, durationYears, salaryUSD, loanPercent, interestRate]);
+  }, [tuitionUSD, livingUSD, durationYears, salaryUSD, loanPercent, interestRate, currentTaxRate, currentPostGradLivingCost]);
 
   return (
     <div className="min-h-screen bg-slate-50 pt-16">
@@ -234,7 +321,6 @@ export default function App() {
             </div>
           </div>
           
-          {/* Reality Toggle (The X-Factor for Judges) */}
           <div className="mt-4 md:mt-0 flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200">
             <span className={`text-sm font-medium ${!showReality ? 'text-slate-900' : 'text-slate-400'}`}>Marketing View</span>
             <button 
@@ -254,18 +340,63 @@ export default function App() {
           {/* Left Column: Inputs */}
           <div className="lg:col-span-2 space-y-5">
             <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
-              <h3 className="font-bold text-slate-900 mb-4">Program Selection</h3>
-              <div className="space-y-2">
+              <h3 className="font-bold text-slate-900 mb-4 flex items-center justify-between">
+                <span>Program Selection</span>
+                {isAILoading && <span className="text-xs text-blue-600 font-semibold flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> AI Fetching...</span>}
+              </h3>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {PROGRAMS.map((p, i) => (
                   <button key={i} onClick={() => handleProgramChange(i)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${selectedProgramIdx === i ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 border border-transparent'}`}>
-                    {p.name}
+                    disabled={isAILoading}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 disabled:opacity-50 ${selectedProgramIdx === i ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 border border-transparent'}`}>
+                    {p.name} {p.id === 'custom' && <Sparkles className="inline w-3 h-3 ml-1 text-emerald-500" />}
                   </button>
                 ))}
               </div>
+
+              {/* Custom Program Form */}
+              {PROGRAMS[selectedProgramIdx].id === 'custom' && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-3">
+                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1">
+                    <Sparkles className="w-3 h-3" /> AI Magic Search
+                  </p>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. MS in Data Science" 
+                    value={customCourseName}
+                    onChange={(e) => setCustomCourseName(e.target.value)}
+                    className="w-full text-sm p-2.5 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="Country (e.g. Germany)" 
+                    value={customCountryName}
+                    onChange={(e) => setCustomCountryName(e.target.value)}
+                    className="w-full text-sm p-2.5 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button 
+                    onClick={handleCustomFetch}
+                    disabled={isAILoading}
+                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400"
+                  >
+                    {isAILoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                    Auto-fill with AI
+                  </button>
+                </div>
+              )}
+              
+              {aiError && <p className="text-xs text-red-600 mt-3 font-medium">{aiError}</p>}
             </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+            <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm relative">
+              {isAILoading && (
+                <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
+                   <div className="flex flex-col items-center gap-2 text-emerald-600 font-bold">
+                     <Loader2 className="w-8 h-8 animate-spin" />
+                     <p className="text-sm">Fetching real-time data...</p>
+                   </div>
+                </div>
+              )}
               <h3 className="font-bold text-slate-900 mb-4">Cost Parameters (USD)</h3>
               <div className="space-y-4">
                 <div>
@@ -273,28 +404,29 @@ export default function App() {
                     <label className="text-sm font-medium text-slate-700">Annual Tuition</label>
                     <span className="text-sm font-bold text-emerald-600">{formatUSD(tuitionUSD)}</span>
                   </div>
-                  <input type="range" min="0" max="100000" step="1000" value={tuitionUSD} onChange={e => {setTuitionUSD(parseInt(e.target.value)); setCalculated(false);}} className="w-full accent-emerald-600" />
+                  {/* setCalculated(false) hata diya gaya hai taaki live update ho */}
+                  <input type="range" min="0" max="100000" step="1000" value={tuitionUSD} onChange={e => setTuitionUSD(parseInt(e.target.value))} className="w-full accent-emerald-600" />
                 </div>
                 <div>
                   <div className="flex justify-between mb-1.5">
                     <label className="text-sm font-medium text-slate-700">Annual Living Cost</label>
                     <span className="text-sm font-bold text-emerald-600">{formatUSD(livingUSD)}</span>
                   </div>
-                  <input type="range" min="0" max="40000" step="500" value={livingUSD} onChange={e => {setLivingUSD(parseInt(e.target.value)); setCalculated(false);}} className="w-full accent-emerald-600" />
+                  <input type="range" min="0" max="40000" step="500" value={livingUSD} onChange={e => setLivingUSD(parseInt(e.target.value))} className="w-full accent-emerald-600" />
                 </div>
                 <div>
                   <div className="flex justify-between mb-1.5">
                     <label className="text-sm font-medium text-slate-700">Program Duration</label>
                     <span className="text-sm font-bold text-emerald-600">{durationYears} year{durationYears > 1 ? 's' : ''}</span>
                   </div>
-                  <input type="range" min="1" max="4" step="1" value={durationYears} onChange={e => {setDurationYears(parseInt(e.target.value)); setCalculated(false);}} className="w-full accent-emerald-600" />
+                  <input type="range" min="1" max="4" step="1" value={durationYears} onChange={e => setDurationYears(parseInt(e.target.value))} className="w-full accent-emerald-600" />
                 </div>
                 <div>
                   <div className="flex justify-between mb-1.5">
                     <label className="text-sm font-medium text-slate-700">Expected Salary (post-grad)</label>
                     <span className="text-sm font-bold text-emerald-600">{formatUSD(salaryUSD)}/yr</span>
                   </div>
-                  <input type="range" min="20000" max="200000" step="5000" value={salaryUSD} onChange={e => {setSalaryUSD(parseInt(e.target.value)); setCalculated(false);}} className="w-full accent-emerald-600" />
+                  <input type="range" min="20000" max="250000" step="5000" value={salaryUSD} onChange={e => setSalaryUSD(parseInt(e.target.value))} className="w-full accent-emerald-600" />
                 </div>
                 
                 <div className="pt-4 border-t border-slate-100">
@@ -305,20 +437,20 @@ export default function App() {
                         <label className="text-sm font-medium text-slate-700">Loan Financing %</label>
                         <span className="text-sm font-bold text-blue-600">{loanPercent}%</span>
                       </div>
-                      <input type="range" min="0" max="100" step="5" value={loanPercent} onChange={e => {setLoanPercent(parseInt(e.target.value)); setCalculated(false);}} className="w-full accent-blue-600" />
+                      <input type="range" min="0" max="100" step="5" value={loanPercent} onChange={e => setLoanPercent(parseInt(e.target.value))} className="w-full accent-blue-600" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-1.5">
                         <label className="text-sm font-medium text-slate-700">Est. Interest Rate (%)</label>
                         <span className="text-sm font-bold text-blue-600">{interestRate}%</span>
                       </div>
-                      <input type="range" min="7" max="15" step="0.5" value={interestRate} onChange={e => {setInterestRate(parseFloat(e.target.value)); setCalculated(false);}} className="w-full accent-blue-600" />
+                      <input type="range" min="7" max="15" step="0.5" value={interestRate} onChange={e => setInterestRate(parseFloat(e.target.value))} className="w-full accent-blue-600" />
                     </div>
                   </div>
                 </div>
 
               </div>
-              <button onClick={() => setCalculated(true)} className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-sm">
+              <button onClick={() => setCalculated(true)} disabled={isAILoading} className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50">
                 Calculate Real ROI
               </button>
             </div>
@@ -329,13 +461,23 @@ export default function App() {
             
             {!calculated && (
               <div className="bg-white rounded-2xl border border-slate-100 p-12 shadow-sm text-center flex flex-col items-center justify-center h-full min-h-[400px]">
-                <BarChart2 className="w-20 h-20 text-slate-200 mb-6" />
-                <h3 className="text-slate-800 text-xl font-bold mb-2">Ready for a Reality Check?</h3>
-                <p className="text-slate-500 max-w-sm">Configure your program details on the left and calculate to see the actual financial impact in INR.</p>
+                {isAILoading ? (
+                  <>
+                    <Loader2 className="w-20 h-20 text-emerald-500 mb-6 animate-spin" />
+                    <h3 className="text-slate-800 text-xl font-bold mb-2">AI is analyzing the market...</h3>
+                    <p className="text-slate-500 max-w-sm">Gathering the latest tuition fees, living costs, and average salaries to give you a realistic picture.</p>
+                  </>
+                ) : (
+                  <>
+                    <BarChart2 className="w-20 h-20 text-slate-200 mb-6" />
+                    <h3 className="text-slate-800 text-xl font-bold mb-2">Ready for a Reality Check?</h3>
+                    <p className="text-slate-500 max-w-sm">Configure your program details on the left and calculate to see the actual financial impact in INR.</p>
+                  </>
+                )}
               </div>
             )}
 
-            {calculated && (
+            {calculated && !isAILoading && (
               <>
                 {/* Top Stat Cards */}
                 <div className="grid grid-cols-2 gap-4">
@@ -374,7 +516,7 @@ export default function App() {
                       <Briefcase size={18} className="text-slate-500" />
                       Post-Graduation Reality (Year 1)
                     </h3>
-                    {showReality && <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 border border-emerald-200"><PiggyBank size={12}/> Trust Score: 100%</span>}
+                    {showReality && <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 border border-emerald-200"><PiggyBank size={12}/> AI Trust Score: 100%</span>}
                   </div>
                   
                   <div className="p-6">
@@ -386,7 +528,7 @@ export default function App() {
                         {/* CTC */}
                         <div className="relative pl-10">
                           <div className="absolute left-2.5 top-1.5 w-3.5 h-3.5 bg-green-500 rounded-full border-4 border-white shadow-sm"></div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Offer Letter CTC</p>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Offer Letter CTC (AI Estimated)</p>
                           <p className="text-xl font-extrabold text-slate-900">{formatINR(stats.expectedCTCINR)}</p>
                         </div>
 
@@ -395,7 +537,7 @@ export default function App() {
                           <div className="absolute left-2.5 top-2 w-3.5 h-3.5 bg-red-400 rounded-full border-4 border-white shadow-sm"></div>
                           <div className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
                             <div>
-                              <p className="text-sm font-bold text-red-700">Taxes & Deductions ({currentProgram.taxRate * 100}%)</p>
+                              <p className="text-sm font-bold text-red-700">Taxes & Deductions ({(currentTaxRate * 100).toFixed(0)}%)</p>
                             </div>
                             <p className="text-base font-bold text-red-700">-{formatINR(stats.taxDeductionINR)}</p>
                           </div>
@@ -407,7 +549,7 @@ export default function App() {
                           <div className="flex justify-between items-center bg-orange-50 p-3 rounded-xl border border-orange-100">
                             <div>
                               <p className="text-sm font-bold text-orange-700">Living Expenses</p>
-                              <p className="text-xs text-orange-600 mt-0.5">Rent, food, transport in {currentProgram.country}</p>
+                              <p className="text-xs text-orange-600 mt-0.5">Rent, food, transport post-grad</p>
                             </div>
                             <p className="text-base font-bold text-orange-700">-{formatINR(stats.postGradLivingCostINR)}</p>
                           </div>
@@ -468,7 +610,7 @@ export default function App() {
                   </div>
                   <div className="z-10 mb-4 md:mb-0">
                     <h4 className="text-lg font-bold">Ready for a realistic future?</h4>
-                    <p className="text-slate-400 text-sm mt-1">We gave you the truth. Now make the right move.</p>
+                    <p className="text-slate-400 text-sm mt-1">We gave you the truth based on live market AI data. Now make the right move.</p>
                   </div>
                   <button onClick={() => handleNavigation('loan')} className="z-10 w-full md:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-900 font-bold py-3 px-6 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 whitespace-nowrap">
                     Explore Loan Options
