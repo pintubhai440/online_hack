@@ -32,7 +32,7 @@ const formatUSD = (amount: number) => {
   }).format(amount);
 };
 
-// Assuming 1 USD = 83.5 INR for fixed conversion
+// Assuming 1 USD = 93.0 INR for fixed conversion as per your logic
 const USD_TO_INR = 93.0;
 
 // --- Types & Interfaces ---
@@ -121,11 +121,6 @@ const PROGRAMS: ProgramData[] = [
   }
 ];
 
-// --- Vercel Environment se Multi-Key Logic ---
-const apiKeysString = import.meta.env.VITE_GEMINI_API_KEY || "";
-const apiKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
-let currentKeyIndex = 0;
-
 export default function App() {
   const handleNavigation = (page: string) => {
       console.log(`Navigating to ${page}... (Navigation Mocked)`);
@@ -152,19 +147,22 @@ export default function App() {
   const [customCourseName, setCustomCourseName] = useState<string>('');
   const [customCountryName, setCustomCountryName] = useState<string>('');
 
-  // Gemini API integration for Dynamic Fetching
+  // 🚀 The Robust 20-Key Failover Logic
   const fetchAIData = async (courseName: string, country: string) => {
     setIsAILoading(true);
     setAiError(null);
     setCalculated(false);
 
+    // Vercel environment se saari comma-separated keys nikal kar array banayenge
+    const apiKeysString = import.meta.env.VITE_GEMINI_API_KEY || "";
+    const apiKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
+
     if (apiKeys.length === 0) {
-      setAiError("Koi API key nahi mili Vercel environment mein.");
+      setAiError("Vercel environment mein koi API key nahi mili.");
       setIsAILoading(false);
       return;
     }
 
-    const delays = [1000, 2000, 4000, 8000, 16000];
     const promptText = `Act as an expert education counselor. Provide realistic and average financial estimates for a student pursuing: "${courseName}" in "${country}". 
     Return the values strictly as JSON. All currency values MUST be in USD (US Dollars), even if the country is India or UK.
     Provide realistic values for:
@@ -191,16 +189,25 @@ export default function App() {
       }
     };
 
-    for (let i = 0; i < delays.length; i++) {
+    let success = false;
+
+    // Yahan hum 20 keys par loop chalayenge
+    for (let i = 0; i < apiKeys.length; i++) {
+      const currentApiKey = apiKeys[i];
       try {
-        const currentApiKey = apiKeys[currentKeyIndex];
+        console.log(`Trying API Key ${i + 1}...`);
+        
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${currentApiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         
-        if (!response.ok) throw new Error('AI API failed');
+        // Agar key limit pe hai ya galat hai, seedha agli key par jump karo (continue)
+        if (!response.ok) {
+          console.warn(`Key ${i + 1} fail ho gayi. Shifting to next key...`);
+          continue; 
+        }
         
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -212,22 +219,21 @@ export default function App() {
           setSalaryUSD(result.salaryUSD);
           setCurrentTaxRate(result.taxRate);
           setCurrentPostGradLivingCost(result.postGradLivingCostUSD);
+          
           setIsAILoading(false);
-          return; // Success
+          success = true; // Kaam ho gaya
+          break; // Data milte hi loop se baahar aa jayenge
         }
       } catch (err) {
-        console.warn(`API Key ${currentKeyIndex + 1} fail ho gayi. Shifting to next...`);
-        // Shift to the next key automatically
-        currentKeyIndex = (currentKeyIndex + 1) % apiKeys.length;
-
-        if (i === delays.length - 1) {
-          setAiError('Bhai, saari API keys ya attempts fail ho gaye. Kripya manually enter karein.');
-          setIsAILoading(false);
-        } else {
-          // Retry hone se pehle thoda delay (Exponential Backoff)
-          await new Promise(r => setTimeout(r, delays[i]));
-        }
+        console.warn(`Error on Key ${i + 1}. Moving to next...`);
+        // Koi bhi network ya JSON parse error aane par code ruke na, dusri key try kare
       }
+    }
+
+    // Agar saari 20 keys fail ho gayin
+    if (!success) {
+      setAiError('Bhai, saari API keys try kar li par sab limit par hain. Kripya manually enter karein.');
+      setIsAILoading(false);
     }
   };
 
@@ -421,7 +427,6 @@ export default function App() {
                     <label className="text-sm font-medium text-slate-700">Annual Tuition</label>
                     <span className="text-sm font-bold text-emerald-600">{formatUSD(tuitionUSD)}</span>
                   </div>
-                  {/* setCalculated(false) hata diya gaya hai taaki live update ho */}
                   <input type="range" min="0" max="100000" step="1000" value={tuitionUSD} onChange={e => setTuitionUSD(parseInt(e.target.value))} className="w-full accent-emerald-600" />
                 </div>
                 <div>
