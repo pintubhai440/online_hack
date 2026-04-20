@@ -12,8 +12,7 @@ import {
   Clock,
   BarChart2,
   IndianRupee,
-  Sparkles,
-  Loader2
+  Sparkles
 } from 'lucide-react';
 
 // Mock format functions
@@ -32,8 +31,8 @@ const formatUSD = (amount: number) => {
   }).format(amount);
 };
 
-// Assuming 1 USD = 93.0 INR for fixed conversion as per your logic
-const USD_TO_INR = 93.0;
+// Assuming 1 USD = 83.5 INR for fixed conversion
+const USD_TO_INR = 83.5;
 
 // --- Types & Interfaces ---
 interface ProgramData {
@@ -111,7 +110,7 @@ const PROGRAMS: ProgramData[] = [
   },
   {
     id: 'custom',
-    name: 'Custom Program (AI Fetched)',
+    name: 'Custom Program',
     country: 'Any',
     baseTuitionUSD: 0,
     baseLivingUSD: 0,
@@ -141,127 +140,17 @@ export default function App() {
   const [showReality, setShowReality] = useState<boolean>(true);
   const [calculated, setCalculated] = useState(false);
 
-  // AI & Custom Program States
-  const [isAILoading, setIsAILoading] = useState<boolean>(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [customCourseName, setCustomCourseName] = useState<string>('');
-  const [customCountryName, setCustomCountryName] = useState<string>('');
-
-  // 🚀 The Robust 20-Key Failover Logic
-  const fetchAIData = async (courseName: string, country: string) => {
-    setIsAILoading(true);
-    setAiError(null);
-    setCalculated(false);
-
-    // Vercel environment se saari comma-separated keys nikal kar array banayenge
-    const apiKeysString = import.meta.env.VITE_GEMINI_API_KEY || "";
-    const apiKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
-
-    if (apiKeys.length === 0) {
-      setAiError("Vercel environment mein koi API key nahi mili.");
-      setIsAILoading(false);
-      return;
-    }
-
-    const promptText = `Act as an expert education counselor. Provide realistic and average financial estimates for a student pursuing: "${courseName}" in "${country}". 
-    Return the values strictly as JSON. All currency values MUST be in USD (US Dollars), even if the country is India or UK.
-    Provide realistic values for:
-    - tuitionUSD: Annual tuition fee in USD
-    - livingUSD: Annual living expenses for a student in USD
-    - salaryUSD: Expected starting salary after graduation in USD
-    - taxRate: Average income tax rate in that country for that salary bracket (as a decimal, e.g. 0.30 for 30%)
-    - postGradLivingCostUSD: Annual living expenses for a working professional after graduation in USD`;
-
-    const payload = {
-      contents: [{ parts: [{ text: promptText }] }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "OBJECT",
-          properties: {
-            tuitionUSD: { type: "INTEGER" },
-            livingUSD: { type: "INTEGER" },
-            salaryUSD: { type: "INTEGER" },
-            taxRate: { type: "NUMBER" },
-            postGradLivingCostUSD: { type: "INTEGER" }
-          }
-        }
-      }
-    };
-
-    let success = false;
-
-    // Yahan hum 20 keys par loop chalayenge
-    for (let i = 0; i < apiKeys.length; i++) {
-      const currentApiKey = apiKeys[i];
-      try {
-        console.log(`Trying API Key ${i + 1}...`);
-        
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${currentApiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-        
-        // Agar key limit pe hai ya galat hai, seedha agli key par jump karo (continue)
-        if (!response.ok) {
-          console.warn(`Key ${i + 1} fail ho gayi. Shifting to next key...`);
-          continue; 
-        }
-        
-        const data = await response.json();
-        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        
-        if (text) {
-          const result = JSON.parse(text);
-          setTuitionUSD(result.tuitionUSD);
-          setLivingUSD(result.livingUSD);
-          setSalaryUSD(result.salaryUSD);
-          setCurrentTaxRate(result.taxRate);
-          setCurrentPostGradLivingCost(result.postGradLivingCostUSD);
-          
-          setIsAILoading(false);
-          success = true; // Kaam ho gaya
-          break; // Data milte hi loop se baahar aa jayenge
-        }
-      } catch (err) {
-        console.warn(`Error on Key ${i + 1}. Moving to next...`);
-        // Koi bhi network ya JSON parse error aane par code ruke na, dusri key try kare
-      }
-    }
-
-    // Agar saari 20 keys fail ho gayin
-    if (!success) {
-      setAiError('Bhai, saari API keys try kar li par sab limit par hain. Kripya manually enter karein.');
-      setIsAILoading(false);
-    }
-  };
 
   const handleProgramChange = (idx: number) => {
     setSelectedProgramIdx(idx);
     const p = PROGRAMS[idx];
     setCalculated(false);
-    setAiError(null);
 
-    if (p.id === 'custom') {
-      // Custom program ke case me hum values reset kar dete hain, user AI fetch button dabayega
-      setTuitionUSD(0);
-      setLivingUSD(0);
-      setSalaryUSD(0);
-      setCurrentTaxRate(0.30);
-      setCurrentPostGradLivingCost(0);
-    } else {
-      // Normal program select karne pe AI se dynamic data fetch karo
-      fetchAIData(p.name, p.country);
-    }
-  };
-
-  const handleCustomFetch = () => {
-    if (customCourseName && customCountryName) {
-      fetchAIData(customCourseName, customCountryName);
-    } else {
-      setAiError('Bhai, course aur country dono enter karo AI analysis ke liye.');
-    }
+    setTuitionUSD(p.baseTuitionUSD);
+    setLivingUSD(p.baseLivingUSD);
+    setSalaryUSD(p.expectedCTCUSD);
+    setCurrentTaxRate(p.taxRate);
+    setCurrentPostGradLivingCost(p.postGradLivingCostUSD);
   };
 
   // --- Calculations Logic ---
@@ -365,61 +254,18 @@ export default function App() {
             <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center justify-between">
                 <span>Program Selection</span>
-                {isAILoading && <span className="text-xs text-blue-600 font-semibold flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin"/> AI Fetching...</span>}
               </h3>
               <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {PROGRAMS.map((p, i) => (
                   <button key={i} onClick={() => handleProgramChange(i)}
-                    disabled={isAILoading}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 disabled:opacity-50 ${selectedProgramIdx === i ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 border border-transparent'}`}>
-                    {p.name} {p.id === 'custom' && <Sparkles className="inline w-3 h-3 ml-1 text-emerald-500" />}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${selectedProgramIdx === i ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200 shadow-sm' : 'text-slate-600 hover:bg-slate-50 border border-transparent'}`}>
+                    {p.name}
                   </button>
                 ))}
               </div>
-
-              {/* Custom Program Form */}
-              {PROGRAMS[selectedProgramIdx].id === 'custom' && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-100 rounded-xl space-y-3">
-                  <p className="text-xs font-bold text-blue-800 uppercase tracking-wider mb-2 flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" /> AI Magic Search
-                  </p>
-                  <input 
-                    type="text" 
-                    placeholder="e.g. MS in Data Science" 
-                    value={customCourseName}
-                    onChange={(e) => setCustomCourseName(e.target.value)}
-                    className="w-full text-sm p-2.5 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Country (e.g. Germany)" 
-                    value={customCountryName}
-                    onChange={(e) => setCustomCountryName(e.target.value)}
-                    className="w-full text-sm p-2.5 rounded-lg border border-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <button 
-                    onClick={handleCustomFetch}
-                    disabled={isAILoading}
-                    className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg transition-colors flex items-center justify-center gap-2 disabled:bg-blue-400"
-                  >
-                    {isAILoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
-                    Auto-fill with AI
-                  </button>
-                </div>
-              )}
-              
-              {aiError && <p className="text-xs text-red-600 mt-3 font-medium">{aiError}</p>}
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm relative">
-              {isAILoading && (
-                <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-2xl">
-                   <div className="flex flex-col items-center gap-2 text-emerald-600 font-bold">
-                     <Loader2 className="w-8 h-8 animate-spin" />
-                     <p className="text-sm">Fetching real-time data...</p>
-                   </div>
-                </div>
-              )}
               <h3 className="font-bold text-slate-900 mb-4">Cost Parameters (USD)</h3>
               <div className="space-y-4">
                 <div>
@@ -472,7 +318,7 @@ export default function App() {
                 </div>
 
               </div>
-              <button onClick={() => setCalculated(true)} disabled={isAILoading} className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50">
+              <button onClick={() => setCalculated(true)} className="w-full mt-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50">
                 Calculate Real ROI
               </button>
             </div>
@@ -483,23 +329,13 @@ export default function App() {
             
             {!calculated && (
               <div className="bg-white rounded-2xl border border-slate-100 p-12 shadow-sm text-center flex flex-col items-center justify-center h-full min-h-[400px]">
-                {isAILoading ? (
-                  <>
-                    <Loader2 className="w-20 h-20 text-emerald-500 mb-6 animate-spin" />
-                    <h3 className="text-slate-800 text-xl font-bold mb-2">AI is analyzing the market...</h3>
-                    <p className="text-slate-500 max-w-sm">Gathering the latest tuition fees, living costs, and average salaries to give you a realistic picture.</p>
-                  </>
-                ) : (
-                  <>
-                    <BarChart2 className="w-20 h-20 text-slate-200 mb-6" />
-                    <h3 className="text-slate-800 text-xl font-bold mb-2">Ready for a Reality Check?</h3>
-                    <p className="text-slate-500 max-w-sm">Configure your program details on the left and calculate to see the actual financial impact in INR.</p>
-                  </>
-                )}
+                <BarChart2 className="w-20 h-20 text-slate-200 mb-6" />
+                <h3 className="text-slate-800 text-xl font-bold mb-2">Ready for a Reality Check?</h3>
+                <p className="text-slate-500 max-w-sm">Configure your program details on the left and calculate to see the actual financial impact in INR.</p>
               </div>
             )}
 
-            {calculated && !isAILoading && (
+            {calculated && (
               <>
                 {/* Top Stat Cards */}
                 <div className="grid grid-cols-2 gap-4">
@@ -538,7 +374,7 @@ export default function App() {
                       <Briefcase size={18} className="text-slate-500" />
                       Post-Graduation Reality (Year 1)
                     </h3>
-                    {showReality && <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 border border-emerald-200"><PiggyBank size={12}/> AI Trust Score: 100%</span>}
+                    {showReality && <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2.5 py-1 rounded-md flex items-center gap-1 border border-emerald-200"><PiggyBank size={12}/> Trust Score: 100%</span>}
                   </div>
                   
                   <div className="p-6">
@@ -550,7 +386,7 @@ export default function App() {
                         {/* CTC */}
                         <div className="relative pl-10">
                           <div className="absolute left-2.5 top-1.5 w-3.5 h-3.5 bg-green-500 rounded-full border-4 border-white shadow-sm"></div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Offer Letter CTC (AI Estimated)</p>
+                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Offer Letter CTC</p>
                           <p className="text-xl font-extrabold text-slate-900">{formatINR(stats.expectedCTCINR)}</p>
                         </div>
 
