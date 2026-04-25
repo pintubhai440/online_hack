@@ -24,26 +24,55 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-const apiKey = "";
+// 1. Vercel Environment Variables se API keys uthana (Safe Vite Standard)
+const apiKeysString = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) 
+  ? import.meta.env.VITE_GEMINI_API_KEY 
+  : "";
+const parsedKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
+
+// Fallback: Agar Vercel me key set nahi hai, toh code crash nahi hoga
+const apiKeys = parsedKeys.length > 0 ? parsedKeys : [""];
+
+// 2. Global index taaki yaad rahe aakhiri baar konsi key use hui thi
+let currentKeyIndex = 0; 
 
 export async function getUniversityData(promptText) {
   let attempts = 0;
+  // Jitni keys hain utni baar try karenge, ya minimum 5 baar
+  const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
-  while (attempts < 5) {
+  while (attempts < maxAttempts) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+      // 3. Current active key select karo
+      const currentKey = apiKeys[currentKeyIndex % apiKeys.length];
+      
+      // Agar key empty hai (matlab Vercel me daalna bhool gaye)
+      if (!currentKey) {
+          throw new Error("API Key missing. Vercel dashboard me VITE_GEMINI_API_KEY check karein.");
+      }
+
+      // Safe fallback model for fast parsing
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${currentKey}`;
       
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: promptText }] }],
-          generationConfig: { temperature: 0.1 }
+          // Ye line AI ki creativity band karke usko 100% factual banayegi
+          generationConfig: {
+            temperature: 0.1 
+          }
         })
       });
       
       if (!response.ok) {
+         // Agar 403 (Forbidden) ya 429 (Too Many Requests) aaye, toh agli key par shift karo
+         if (response.status === 403 || response.status === 429) {
+             console.warn(`Key index ${currentKeyIndex % apiKeys.length} fail ho gayi. Next key load kar rahe hain...`);
+             currentKeyIndex++; 
+         }
          throw new Error(`HTTP Error: ${response.status}`);
       }
 
@@ -51,7 +80,11 @@ export async function getUniversityData(promptText) {
       return result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     } catch (error) {
-      if (attempts >= 4) throw error; 
+      if (attempts >= maxAttempts - 1) {
+        throw error; // Saari keys aur attempts fail hone par hi error bahar phekega
+      }
+      
+      // Chota sa break lo aur wapas try karo (Exponential Backoff)
       const delay = delays[attempts] || 2000;
       await new Promise(resolve => setTimeout(resolve, delay));
       attempts++;
@@ -173,7 +206,11 @@ export default function App() {
       }
     } catch (error) {
       console.error("AI Data Fetch Error:", error);
-      setAiError("AI estimate failed. Please enter manually.");
+      if (error.message && error.message.includes("API Key missing")) {
+         setAiError("System Configuration Error: Vercel par API key set nahi hai.");
+      } else {
+         setAiError("AI estimate laane me thodi dikkat aayi. Please ek baar phir try karein ya manually enter karein.");
+      }
     } finally {
       setIsAILoading(false);
     }
