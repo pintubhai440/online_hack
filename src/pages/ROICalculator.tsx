@@ -12,8 +12,45 @@ import {
   Clock,
   BarChart2,
   IndianRupee,
-  Sparkles
+  Sparkles,
+  Loader2 // Added loading icon
 } from 'lucide-react';
+
+// Using standard fetch pattern to avoid external file and SDK dependency errors
+const apiKey = "";
+
+export async function getUniversityData(promptText: string) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  
+  let attempts = 0;
+  const delays = [1000, 2000, 4000, 8000, 16000];
+
+  while (attempts < 5) {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+      
+      if (!response.ok) {
+         throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    } catch (error) {
+      if (attempts >= 4) {
+        throw error;
+      }
+      await new Promise(resolve => setTimeout(resolve, delays[attempts]));
+      attempts++;
+    }
+  }
+}
 
 // Mock format functions
 const formatINR = (amount: number) => {
@@ -140,17 +177,65 @@ export default function App() {
   const [showReality, setShowReality] = useState<boolean>(true);
   const [calculated, setCalculated] = useState(false);
 
+  // --- Naye State Variables ---
+  const [customProgramName, setCustomProgramName] = useState<string>('');
+  const [isAILoading, setIsAILoading] = useState<boolean>(false);
+  const [aiError, setAiError] = useState<string>(''); // For replacing alert()
 
   const handleProgramChange = (idx: number) => {
     setSelectedProgramIdx(idx);
     const p = PROGRAMS[idx];
     setCalculated(false);
+    setAiError('');
 
     setTuitionUSD(p.baseTuitionUSD);
     setLivingUSD(p.baseLivingUSD);
     setSalaryUSD(p.expectedCTCUSD);
     setCurrentTaxRate(p.taxRate);
     setCurrentPostGradLivingCost(p.postGradLivingCostUSD);
+  };
+
+  // --- AI se Data Mangne wala Smart Function ---
+  const fetchAIData = async () => {
+    if (!customProgramName) return;
+    
+    setIsAILoading(true);
+    setAiError(''); // Purana error hatao
+    try {
+      // AI ko strict instruction de rahe hain ki sirf JSON numbers de, no text
+      const prompt = `Act as an expert study abroad financial advisor. Provide highly realistic financial estimates for an Indian student pursuing this program: "${customProgramName}". 
+      Return ONLY a raw JSON object with no markdown formatting and no extra text. Use these exact numeric keys:
+      {
+        "baseTuitionUSD": (annual tuition fee in USD),
+        "baseLivingUSD": (annual living expenses during study in USD),
+        "expectedCTCUSD": (realistic annual starting salary in USD),
+        "taxRate": (decimal tax rate for that country, e.g. 0.30 for 30%),
+        "postGradLivingCostUSD": (annual living cost after graduation as a professional in USD)
+      }`;
+
+      const responseText = await getUniversityData(prompt);
+      
+      if (responseText) {
+        // AI kabhi kabhi ```json aur ``` laga deta hai, usko hata kar saaf kar rahe hain
+        const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const aiData = JSON.parse(cleanedText);
+
+        // Sliders ko real AI data se auto-fill kar do
+        if (aiData.baseTuitionUSD) setTuitionUSD(aiData.baseTuitionUSD);
+        if (aiData.baseLivingUSD) setLivingUSD(aiData.baseLivingUSD);
+        if (aiData.expectedCTCUSD) setSalaryUSD(aiData.expectedCTCUSD);
+        if (aiData.taxRate) setCurrentTaxRate(aiData.taxRate);
+        if (aiData.postGradLivingCostUSD) setCurrentPostGradLivingCost(aiData.postGradLivingCostUSD);
+        
+        setCalculated(false); // Result hide karo taaki user pehle inputs verify kar sake
+      }
+    } catch (error) {
+      console.error("AI Data Fetch Error:", error);
+      // alert() ki jagah hum UI error dikhayenge
+      setAiError("AI estimate laane me thodi dikkat aayi. Please ek baar phir try karein ya manually enter karein.");
+    } finally {
+      setIsAILoading(false);
+    }
   };
 
   // --- Calculations Logic ---
@@ -263,6 +348,44 @@ export default function App() {
                   </button>
                 ))}
               </div>
+              
+              {/* NAYA CODE YAHAN SE SHURU */}
+              {PROGRAMS[selectedProgramIdx].id === 'custom' && (
+                <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <label className="text-sm font-bold text-slate-700 block mb-2">
+                    Apna Dream Program & Country likho:
+                  </label>
+                  <input 
+                    type="text" 
+                    placeholder="e.g. MS in Data Science at NYU, USA" 
+                    value={customProgramName}
+                    onChange={(e) => setCustomProgramName(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg mb-3 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                  <button 
+                    onClick={fetchAIData}
+                    disabled={isAILoading || customProgramName.length < 5}
+                    className="w-full bg-slate-900 text-white py-2.5 rounded-lg text-sm font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-colors disabled:opacity-50"
+                  >
+                    {isAILoading ? (
+                      <><Loader2 className="animate-spin" size={16} /> Real Data Laa raha hu...</>
+                    ) : (
+                      <><Sparkles size={16} className="text-emerald-400" /> Auto-Fill with AI</>
+                    )}
+                  </button>
+                  {/* Inline Error Message */}
+                  {aiError && (
+                    <p className="text-xs text-red-500 mt-2 font-medium bg-red-50 p-2 rounded text-center border border-red-100">
+                      {aiError}
+                    </p>
+                  )}
+                  <p className="text-[10px] text-slate-500 mt-2 text-center">
+                    Gemini AI real market data fetch karke sliders set karega.
+                  </p>
+                </div>
+              )}
+              {/* NAYA CODE YAHAN KHATAM */}
+
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm relative">
@@ -357,7 +480,7 @@ export default function App() {
                     </div>
                     {showReality ? (
                       <p className="mt-2 text-xs text-emerald-100 opacity-90 leading-tight">
-                         Accounts for living expenses, taxes, and study-period interest.
+                          Accounts for living expenses, taxes, and study-period interest.
                       </p>
                     ) : (
                       <p className="mt-2 text-xs text-red-500 font-medium bg-red-50 p-1.5 rounded inline-block leading-tight border border-red-100">
