@@ -13,20 +13,37 @@ import {
   BarChart2,
   IndianRupee,
   Sparkles,
-  Loader2 // Added loading icon
+  Loader2
 } from 'lucide-react';
 
-// Using standard fetch pattern to avoid external file and SDK dependency errors
-const apiKey = "";
+// 1. Vercel Environment Variables se API keys uthana (Vite Standard)
+const apiKeysString = import.meta.env.VITE_GEMINI_API_KEY || "";
+const parsedKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
+
+// Fallback: Agar Vercel me key set nahi hai, toh code crash nahi hoga
+const apiKeys = parsedKeys.length > 0 ? parsedKeys : [""];
+
+// 2. Global index taaki yaad rahe aakhiri baar konsi key use hui thi
+let currentKeyIndex = 0; 
 
 export async function getUniversityData(promptText: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
-  
   let attempts = 0;
+  // Jitni keys hain utni baar try karenge, ya minimum 5 baar
+  const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
-  while (attempts < 5) {
+  while (attempts < maxAttempts) {
     try {
+      // 3. Current active key select karo
+      const currentKey = apiKeys[currentKeyIndex % apiKeys.length];
+      
+      // Agar key empty hai (matlab Vercel me daalna bhool gaye)
+      if (!currentKey) {
+          throw new Error("API Key missing. Vercel dashboard me VITE_GEMINI_API_KEY check karein.");
+      }
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${currentKey}`;
+      
       const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -36,6 +53,11 @@ export async function getUniversityData(promptText: string) {
       });
       
       if (!response.ok) {
+         // Agar 403 (Forbidden) ya 429 (Too Many Requests) aaye, toh agli key par shift karo
+         if (response.status === 403 || response.status === 429) {
+             console.warn(`Key index ${currentKeyIndex % apiKeys.length} fail ho gayi. Next key load kar rahe hain...`);
+             currentKeyIndex++; 
+         }
          throw new Error(`HTTP Error: ${response.status}`);
       }
 
@@ -43,10 +65,13 @@ export async function getUniversityData(promptText: string) {
       return result.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     } catch (error) {
-      if (attempts >= 4) {
-        throw error;
+      if (attempts >= maxAttempts - 1) {
+        throw error; // Saari keys aur attempts fail hone par hi error bahar phekega
       }
-      await new Promise(resolve => setTimeout(resolve, delays[attempts]));
+      
+      // Chota sa break lo aur wapas try karo (Exponential Backoff)
+      const delay = delays[attempts] || 2000;
+      await new Promise(resolve => setTimeout(resolve, delay));
       attempts++;
     }
   }
@@ -180,7 +205,7 @@ export default function App() {
   // --- Naye State Variables ---
   const [customProgramName, setCustomProgramName] = useState<string>('');
   const [isAILoading, setIsAILoading] = useState<boolean>(false);
-  const [aiError, setAiError] = useState<string>(''); // For replacing alert()
+  const [aiError, setAiError] = useState<string>('');
 
   const handleProgramChange = (idx: number) => {
     setSelectedProgramIdx(idx);
@@ -200,9 +225,8 @@ export default function App() {
     if (!customProgramName) return;
     
     setIsAILoading(true);
-    setAiError(''); // Purana error hatao
+    setAiError(''); 
     try {
-      // AI ko strict instruction de rahe hain ki sirf JSON numbers de, no text
       const prompt = `Act as an expert study abroad financial advisor. Provide highly realistic financial estimates for an Indian student pursuing this program: "${customProgramName}". 
       Return ONLY a raw JSON object with no markdown formatting and no extra text. Use these exact numeric keys:
       {
@@ -216,23 +240,24 @@ export default function App() {
       const responseText = await getUniversityData(prompt);
       
       if (responseText) {
-        // AI kabhi kabhi ```json aur ``` laga deta hai, usko hata kar saaf kar rahe hain
         const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(cleanedText);
 
-        // Sliders ko real AI data se auto-fill kar do
         if (aiData.baseTuitionUSD) setTuitionUSD(aiData.baseTuitionUSD);
         if (aiData.baseLivingUSD) setLivingUSD(aiData.baseLivingUSD);
         if (aiData.expectedCTCUSD) setSalaryUSD(aiData.expectedCTCUSD);
         if (aiData.taxRate) setCurrentTaxRate(aiData.taxRate);
         if (aiData.postGradLivingCostUSD) setCurrentPostGradLivingCost(aiData.postGradLivingCostUSD);
         
-        setCalculated(false); // Result hide karo taaki user pehle inputs verify kar sake
+        setCalculated(false); 
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Data Fetch Error:", error);
-      // alert() ki jagah hum UI error dikhayenge
-      setAiError("AI estimate laane me thodi dikkat aayi. Please ek baar phir try karein ya manually enter karein.");
+      if (error.message && error.message.includes("API Key missing")) {
+         setAiError("System Configuration Error: Vercel par API key set nahi hai.");
+      } else {
+         setAiError("AI estimate laane me thodi dikkat aayi. Please ek baar phir try karein ya manually enter karein.");
+      }
     } finally {
       setIsAILoading(false);
     }
@@ -248,11 +273,9 @@ export default function App() {
     
     const outOfPocketINR = totalCostINR - loanAmountINR;
 
-    // Moratorium period interest - REALITY CHECK
     const moratoriumInterestINR = loanAmountINR * (interestRate / 100) * durationYears; 
     const debtAtGraduationINR = loanAmountINR + moratoriumInterestINR;
 
-    // Real-life CTC vs In-hand in INR
     const expectedCTCINR = salaryUSD * USD_TO_INR;
     const taxDeductionINR = expectedCTCINR * currentTaxRate;
     const inHandSalaryINR = expectedCTCINR - taxDeductionINR;
@@ -260,7 +283,6 @@ export default function App() {
     const postGradLivingCostINR = currentPostGradLivingCost * USD_TO_INR;
     const disposableIncomeINR = inHandSalaryINR - postGradLivingCostINR;
 
-    // EMI Calculation (10 years)
     const monthlyRate = (interestRate / 100) / 12;
     const months = 10 * 12;
     
@@ -274,7 +296,6 @@ export default function App() {
 
     const netSavingsINR = disposableIncomeINR - yearlyEMI_INR;
 
-    // Payback Period
     const marketingPayback = expectedCTCINR > 0 ? (totalCostINR / expectedCTCINR).toFixed(1) : "N/A";
     const realPayback = disposableIncomeINR > 0 
       ? (debtAtGraduationINR / (disposableIncomeINR > yearlyEMI_INR ? yearlyEMI_INR + netSavingsINR : disposableIncomeINR)).toFixed(1)
@@ -349,7 +370,7 @@ export default function App() {
                 ))}
               </div>
               
-              {/* NAYA CODE YAHAN SE SHURU */}
+              {/* Custom Program AI Box */}
               {PROGRAMS[selectedProgramIdx].id === 'custom' && (
                 <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                   <label className="text-sm font-bold text-slate-700 block mb-2">
@@ -373,7 +394,6 @@ export default function App() {
                       <><Sparkles size={16} className="text-emerald-400" /> Auto-Fill with AI</>
                     )}
                   </button>
-                  {/* Inline Error Message */}
                   {aiError && (
                     <p className="text-xs text-red-500 mt-2 font-medium bg-red-50 p-2 rounded text-center border border-red-100">
                       {aiError}
@@ -384,7 +404,6 @@ export default function App() {
                   </p>
                 </div>
               )}
-              {/* NAYA CODE YAHAN KHATAM */}
 
             </div>
 
@@ -480,7 +499,7 @@ export default function App() {
                     </div>
                     {showReality ? (
                       <p className="mt-2 text-xs text-emerald-100 opacity-90 leading-tight">
-                          Accounts for living expenses, taxes, and study-period interest.
+                         Accounts for living expenses, taxes, and study-period interest.
                       </p>
                     ) : (
                       <p className="mt-2 text-xs text-red-500 font-medium bg-red-50 p-1.5 rounded inline-block leading-tight border border-red-100">
