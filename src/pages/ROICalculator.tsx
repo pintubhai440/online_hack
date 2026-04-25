@@ -20,7 +20,7 @@ import {
 const apiKey = "";
 
 export async function getUniversityData(promptText: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`;
   
   let attempts = 0;
   const delays = [1000, 2000, 4000, 8000, 16000];
