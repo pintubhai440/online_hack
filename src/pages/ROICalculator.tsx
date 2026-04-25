@@ -16,8 +16,10 @@ import {
   Loader2
 } from 'lucide-react';
 
-// 1. Vercel Environment Variables se API keys uthana (Vite Standard)
-const apiKeysString = import.meta.env.VITE_GEMINI_API_KEY || "";
+// 1. Vercel Environment Variables se API keys uthana (Safe Vite Standard)
+const apiKeysString = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) 
+  ? import.meta.env.VITE_GEMINI_API_KEY 
+  : "";
 const parsedKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
 
 // Fallback: Agar Vercel me key set nahi hai, toh code crash nahi hoga
@@ -48,7 +50,11 @@ export async function getUniversityData(promptText: string) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: promptText }] }]
+          contents: [{ parts: [{ text: promptText }] }],
+          // Ye line AI ki creativity band karke usko 100% factual banayegi
+          generationConfig: {
+            temperature: 0.1 
+          }
         })
       });
       
@@ -227,14 +233,21 @@ export default function App() {
     setIsAILoading(true);
     setAiError(''); 
     try {
-      const prompt = `Act as an expert study abroad financial advisor. Provide highly realistic financial estimates for an Indian student pursuing this program: "${customProgramName}". 
-      Return ONLY a raw JSON object with no markdown formatting and no extra text. Use these exact numeric keys:
+      const prompt = `You are a strict, data-driven Study Abroad Financial Analyst. Your job is to provide factual, current (2025/2026), and accurate real-world cost and salary data for an international student pursuing the following program: "${customProgramName}".
+
+      Strict Rules to follow:
+      1. Tuition: DO NOT guess. Use the actual out-of-state/international student tuition fee per year for this specific university.
+      2. Living Cost: Must reflect the actual current cost of rent, food, and transport in the specific city/region of this university.
+      3. Salary: Provide the realistic AVERAGE starting base salary (CTC) for an international graduate in this specific field and country. Do NOT give top 1% FAANG salaries.
+      4. Tax Rate: Provide the accurate average income tax percentage for that country/state (as a decimal, e.g., 0.35 for 35%).
+      
+      Return ONLY a valid JSON object with NO markdown formatting and NO extra text. Use these exact numeric keys:
       {
-        "baseTuitionUSD": (annual tuition fee in USD),
-        "baseLivingUSD": (annual living expenses during study in USD),
-        "expectedCTCUSD": (realistic annual starting salary in USD),
-        "taxRate": (decimal tax rate for that country, e.g. 0.30 for 30%),
-        "postGradLivingCostUSD": (annual living cost after graduation as a professional in USD)
+        "baseTuitionUSD": (annual tuition in USD),
+        "baseLivingUSD": (annual living in USD),
+        "expectedCTCUSD": (starting base salary in USD),
+        "taxRate": (tax rate as decimal),
+        "postGradLivingCostUSD": (annual post-grad living cost in USD)
       }`;
 
       const responseText = await getUniversityData(prompt);
@@ -499,7 +512,7 @@ export default function App() {
                     </div>
                     {showReality ? (
                       <p className="mt-2 text-xs text-emerald-100 opacity-90 leading-tight">
-                         Accounts for living expenses, taxes, and study-period interest.
+                          Accounts for living expenses, taxes, and study-period interest.
                       </p>
                     ) : (
                       <p className="mt-2 text-xs text-red-500 font-medium bg-red-50 p-1.5 rounded inline-block leading-tight border border-red-100">
