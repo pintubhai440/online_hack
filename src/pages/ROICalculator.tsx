@@ -38,16 +38,13 @@ let currentKeyIndex = 0;
 
 export async function getUniversityData(promptText: string) {
   let attempts = 0;
-  // Jitni keys hain utni baar try karenge, ya minimum 5 baar
   const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
   while (attempts < maxAttempts) {
     try {
-      // 3. Current active key select karo
       const currentKey = apiKeys[currentKeyIndex % apiKeys.length];
       
-      // Agar key empty hai (matlab Vercel me daalna bhool gaye)
       if (!currentKey) {
           throw new Error("API Key missing. Vercel dashboard me VITE_GEMINI_API_KEY check karein.");
       }
@@ -59,7 +56,6 @@ export async function getUniversityData(promptText: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           contents: [{ parts: [{ text: promptText }] }],
-          // Ye line AI ki creativity band karke usko 100% factual banayegi
           generationConfig: {
             temperature: 0.1 
           }
@@ -67,7 +63,6 @@ export async function getUniversityData(promptText: string) {
       });
       
       if (!response.ok) {
-         // Agar 403 (Forbidden) ya 429 (Too Many Requests) aaye, toh agli key par shift karo
          if (response.status === 403 || response.status === 429) {
              console.warn(`Key index ${currentKeyIndex % apiKeys.length} fail ho gayi. Next key load kar rahe hain...`);
              currentKeyIndex++; 
@@ -80,10 +75,8 @@ export async function getUniversityData(promptText: string) {
 
     } catch (error) {
       if (attempts >= maxAttempts - 1) {
-        throw error; // Saari keys aur attempts fail hone par hi error bahar phekega
+        throw error; 
       }
-      
-      // Chota sa break lo aur wapas try karo (Exponential Backoff)
       const delay = delays[attempts] || 2000;
       await new Promise(resolve => setTimeout(resolve, delay));
       attempts++;
@@ -91,13 +84,12 @@ export async function getUniversityData(promptText: string) {
   }
 }
 
-// --- UPDATED AI Parser Function (Magic Upload Guardrails ke saath) ---
+// --- AI Parser Function (Magic Upload Guardrails ke saath) ---
 export async function parseDocumentWithAI(base64Data: string, mimeType: string) {
   let attempts = 0;
   const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
-  // NAYA PROMPT: Strict rules laga diye hain yahan bhi
   const promptText = `You are an expert Study Abroad Offer Letter Parser. 
   
 CRITICAL GUARDRAIL: First, verify if the provided image/document is an Admission Offer Letter from a University/College. 
@@ -121,7 +113,6 @@ Output ONLY valid JSON.`;
       const currentKey = apiKeys[currentKeyIndex % apiKeys.length];
       if (!currentKey) throw new Error("API Key missing.");
 
-      // Hum gemini-2.5-flash-lite use kar rahe hain
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${currentKey}`;
       
       const response = await fetch(url, {
@@ -134,7 +125,7 @@ Output ONLY valid JSON.`;
               { inlineData: { mimeType, data: base64Data } }
             ] 
           }],
-          generationConfig: { temperature: 0.1 } // Ekdum factual
+          generationConfig: { temperature: 0.1 } 
         })
       });
       
@@ -174,7 +165,7 @@ const formatUSD = (amount: number) => {
   }).format(amount);
 };
 
-// Assuming 1 USD = 83.5 INR for fixed conversion
+// Assuming 1 USD = 92.5 INR for fixed conversion
 const USD_TO_INR = 92.5;
 
 // --- Types & Interfaces ---
@@ -189,7 +180,7 @@ interface ProgramData {
   postGradLivingCostUSD: number; 
 }
 
-// --- Mock Database (Real-life approximate data as fallback) ---
+// --- Mock Database ---
 const PROGRAMS: ProgramData[] = [
   { id: 'ms_cs_us', name: 'MS Computer Science (USA)', country: 'USA', baseTuitionUSD: 50000, baseLivingUSD: 24000, expectedCTCUSD: 110000, taxRate: 0.30, postGradLivingCostUSD: 30000 },
   { id: 'mba_us', name: 'MBA (USA Top 20)', country: 'USA', baseTuitionUSD: 65000, baseLivingUSD: 22000, expectedCTCUSD: 130000, taxRate: 0.35, postGradLivingCostUSD: 35000 },
@@ -220,20 +211,23 @@ export default function App() {
   const [showReality, setShowReality] = useState<boolean>(true);
   const [calculated, setCalculated] = useState(false);
 
-  // --- Naye State Variables ---
   const [customProgramName, setCustomProgramName] = useState<string>('');
   const [isAILoading, setIsAILoading] = useState<boolean>(false);
   const [aiError, setAiError] = useState<string>('');
 
-  // Parent Report Modal State
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false); 
 
-  // --- Magic File Upload State ---
   const [isParsingDoc, setIsParsingDoc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load html2pdf library dynamically
+  // --- Naya: Loan Eligibility Modal State ---
+  const [showLoanModal, setShowLoanModal] = useState(false);
+  const [cgpa, setCgpa] = useState('');
+  const [collateral, setCollateral] = useState('no');
+  const [loanAIResult, setLoanAIResult] = useState('');
+  const [isLoanAILoading, setIsLoanAILoading] = useState(false);
+
   useEffect(() => {
     const script = document.createElement('script');
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
@@ -257,7 +251,6 @@ export default function App() {
     setCurrentPostGradLivingCost(p.postGradLivingCostUSD);
   };
 
-  // --- AI se Data Mangne wala Smart Function (with GUARDRAILS) ---
   const fetchAIData = async () => {
     if (!customProgramName) return;
     
@@ -319,7 +312,6 @@ export default function App() {
     }
   };
 
-  // --- UPDATED Handle File Upload Logic (Silent failure fixed) ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -343,13 +335,11 @@ export default function App() {
             const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
             const aiData = JSON.parse(cleanedText);
 
-            // NAYA CODE: AI Guardrail Error Check
             if (aiData.error) {
                 setAiError(aiData.error);
-                return; // UI update mat karo, sirf error dikhao
+                return; 
             }
 
-            // NAYA CODE: Agar valid JSON diya par sab 'null' tha (Silent failure catch)
             if (!aiData.university_name && !aiData.course_name && !aiData.tuition_fee_usd) {
                 setAiError("Document padha gaya, par koi University Name ya Fees nahi mili. Kya document clear hai?");
                 return;
@@ -434,7 +424,6 @@ export default function App() {
     ? (customProgramName || 'Custom Program') 
     : PROGRAMS[selectedProgramIdx].name;
 
-  // FIxed PDF Download Function (Solves the White/Blank Page Issue)
   const handleDownloadPDF = () => {
     if (!(window as any).html2pdf) {
       alert("PDF engine load ho raha hai, please 2 second wait karein...");
@@ -472,12 +461,30 @@ export default function App() {
     }, 300);
   };
 
+  // --- Naya: Check Loan Eligibility Logic ---
+  const checkLoanEligibility = async () => {
+    if (!cgpa) return;
+    setIsLoanAILoading(true);
+    setLoanAIResult('');
+    
+    try {
+      const prompt = `Act as an expert Indian Education Loan Advisor. A student wants an education loan of ${formatINR(stats.loanAmountINR)}. Their CGPA is ${cgpa} out of 10. Collateral available: ${collateral}. Based on current Indian market trends (SBI, HDFC, Credila, etc.), give a short 2-3 line realistic prediction in Hinglish/English: which bank is best, estimated interest rate, and a quick encouraging remark. Do not use markdown formatting. Make it sound like a real agent advising them.`;
+      
+      const result = await getUniversityData(prompt);
+      setLoanAIResult(result || "Aapko SBI ya HDFC se easily 10.5% pe loan mil jayega. Click Apply Now!");
+    } catch (error) {
+      // Fallback response agar API limit pe ho
+      setLoanAIResult("Aapke profile ke hisaab se SBI Global Ed-Vantage ya HDFC Credila best rahega (approx 10.5% - 11.5% interest rate). Aap directly apply kar sakte hain.");
+    } finally {
+      setIsLoanAILoading(false);
+    }
+  };
+
   return (
     <>
       <div className="min-h-screen bg-slate-50 pt-16 print:hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
-          {/* Header Section */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
             <div className="flex items-center gap-4">
                <button onClick={() => handleNavigation('dashboard')} className="p-2 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
@@ -508,14 +515,12 @@ export default function App() {
 
           <div className="grid lg:grid-cols-5 gap-6">
             
-            {/* Left Column: Inputs */}
             <div className="lg:col-span-2 space-y-5">
               <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center justify-between">
                   <span>Program Selection</span>
                 </h3>
 
-                {/* --- MAGIC UPLOAD BUTTON START --- */}
                 <div className="mb-4">
                   <input 
                     type="file" 
@@ -535,7 +540,6 @@ export default function App() {
                       <><Sparkles size={18} className="text-yellow-200" /> Upload Offer Letter 🪄</>
                     )}
                   </button>
-                  {/* Validation Error specifically for AI upload failures */}
                   {aiError && (
                     <p className="text-xs text-red-600 mt-3 font-bold bg-red-50 p-2.5 rounded-lg border border-red-200">
                       <AlertCircle className="inline mr-1 -mt-0.5" size={14}/>
@@ -543,7 +547,6 @@ export default function App() {
                     </p>
                   )}
                 </div>
-                {/* --- MAGIC UPLOAD BUTTON END --- */}
 
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {PROGRAMS.map((p, i) => (
@@ -554,7 +557,6 @@ export default function App() {
                   ))}
                 </div>
                 
-                {/* Custom Program AI Box */}
                 {PROGRAMS[selectedProgramIdx].id === 'custom' && (
                   <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                     <label className="text-sm font-bold text-slate-700 block mb-2">
@@ -645,7 +647,6 @@ export default function App() {
               </div>
             </div>
 
-            {/* Right Column: Dashboards & Reality Output */}
             <div className="lg:col-span-3 space-y-5">
               
               {!calculated && (
@@ -658,7 +659,6 @@ export default function App() {
 
               {calculated && (
                 <>
-                  {/* Top Stat Cards */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
                       <p className="text-sm font-medium text-slate-500">Total Education Cost</p>
@@ -688,7 +688,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* The "Truth" Breakdown Section (Waterfall) */}
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                     <div className="bg-slate-50 p-4 border-b border-slate-100 flex items-center justify-between">
                       <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -700,18 +699,15 @@ export default function App() {
                     
                     <div className="p-6">
                       <div className="relative">
-                        {/* Base Line */}
                         <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-slate-200"></div>
 
                         <div className="space-y-6">
-                          {/* CTC */}
                           <div className="relative pl-10">
                             <div className="absolute left-2.5 top-1.5 w-3.5 h-3.5 bg-green-500 rounded-full border-4 border-white shadow-sm"></div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Offer Letter CTC (Annual)</p>
                             <p className="text-xl font-extrabold text-slate-900">{formatINR(stats.expectedCTCINR)}</p>
                           </div>
 
-                          {/* Tax & Reality Drop */}
                           <div className={`relative pl-10 transition-all duration-500 ${!showReality ? 'opacity-40 grayscale' : 'opacity-100'}`}>
                             <div className="absolute left-2.5 top-2 w-3.5 h-3.5 bg-red-400 rounded-full border-4 border-white shadow-sm"></div>
                             <div className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
@@ -722,7 +718,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Living Expenses */}
                           <div className={`relative pl-10 transition-all duration-500 ${!showReality ? 'opacity-40 grayscale' : 'opacity-100'}`}>
                             <div className="absolute left-2.5 top-2 w-3.5 h-3.5 bg-orange-400 rounded-full border-4 border-white shadow-sm"></div>
                             <div className="flex justify-between items-center bg-orange-50 p-3 rounded-xl border border-orange-100">
@@ -734,7 +729,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* EMI */}
                           <div className="relative pl-10">
                             <div className="absolute left-2.5 top-2 w-3.5 h-3.5 bg-purple-500 rounded-full border-4 border-white shadow-sm"></div>
                             <div className="flex justify-between items-center bg-purple-50 p-3 rounded-xl border border-purple-100">
@@ -750,7 +744,6 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Final Savings */}
                           <div className={`relative pl-10 transition-all duration-500 ${!showReality ? 'hidden' : 'block'}`}>
                             <div className="absolute left-1.5 top-2 w-5 h-5 bg-emerald-500 rounded-full border-4 border-white shadow-sm flex items-center justify-center z-10">
                               <div className="w-2 h-2 bg-white rounded-full"></div>
@@ -796,7 +789,11 @@ export default function App() {
                       </div>
                     </button>
 
-                    <div className="bg-slate-900 rounded-2xl p-4 flex flex-row items-center justify-between text-white shadow-lg relative overflow-hidden group hover:bg-slate-800 transition-colors cursor-pointer" onClick={() => handleNavigation('loan')}>
+                    {/* --- CHANGED: Apply Now Button now opens Loan Modal --- */}
+                    <div 
+                      className="bg-slate-900 rounded-2xl p-4 flex flex-row items-center justify-between text-white shadow-lg relative overflow-hidden group hover:bg-slate-800 transition-colors cursor-pointer" 
+                      onClick={() => setShowLoanModal(true)}
+                    >
                       <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
                           <GraduationCap size={100} />
                       </div>
@@ -816,7 +813,75 @@ export default function App() {
         </div>
       </div>
 
-      {/* Parent PDF Preview Modal */}
+      {/* --- SMART LOAN ELIGIBILITY MODAL --- */}
+      {showLoanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <GraduationCap className="text-emerald-600" size={24}/>
+                Loan Eligibility Check
+              </h2>
+              <button onClick={() => setShowLoanModal(false)} className="p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-800 rounded-xl transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800 flex justify-between items-center">
+                <span className="font-bold">Required Loan:</span>
+                <span className="font-black text-lg">{formatINR(stats.loanAmountINR)}</span>
+              </div>
+              
+              <div>
+                <label className="text-sm font-bold text-slate-700 block mb-1.5">Apna CGPA dalein (Out of 10)</label>
+                <input 
+                  type="number" 
+                  max="10" min="0" step="0.1" 
+                  value={cgpa} 
+                  onChange={(e) => setCgpa(e.target.value)} 
+                  placeholder="e.g. 8.5" 
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-bold text-slate-700 block mb-1.5">Kya aapke paas Collateral (Property/FD) hai?</label>
+                <div className="flex gap-3">
+                  <button onClick={() => setCollateral('yes')} className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition-colors ${collateral === 'yes' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Haan (Yes)</button>
+                  <button onClick={() => setCollateral('no')} className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition-colors ${collateral === 'no' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Nahi (No)</button>
+                </div>
+              </div>
+
+              {!loanAIResult ? (
+                <button 
+                  onClick={checkLoanEligibility} 
+                  disabled={isLoanAILoading || !cgpa} 
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+                >
+                  {isLoanAILoading ? (
+                    <><Loader2 size={18} className="animate-spin" /> AI Agent Check Kar Raha Hai...</>
+                  ) : (
+                    <><Sparkles size={18} className="text-yellow-400"/> Ask AI for Loan Options</>
+                  )}
+                </button>
+              ) : (
+                <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-200 mt-4 animate-in slide-in-from-bottom-2">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="bg-emerald-100 p-2 rounded-full text-emerald-600 shrink-0">
+                      <CheckCircle size={20} />
+                    </div>
+                    <p className="text-sm text-emerald-900 font-medium leading-relaxed">{loanAIResult}</p>
+                  </div>
+                  <a href="https://www.sbi.co.in/web/personal-banking/loans/education-loans" target="_blank" rel="noreferrer" className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm">
+                    Click here to Apply Directly
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {showReportPreview && calculated && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -858,7 +923,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Hidden layout specifically for print generation */}
       <div className="hidden print:block absolute top-0 left-0 w-full bg-white text-black">
          <PrintableReportLayout stats={stats} activeProgramName={activeProgramName} durationYears={durationYears} loanPercent={loanPercent} interestRate={interestRate} />
       </div>
@@ -866,11 +930,9 @@ export default function App() {
   );
 }
 
-// Sub-component for the Formal Document Layout - EXACTLY 1:1 WITH APP
 function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPercent, interestRate }: any) {
   const isSafe = stats.netSavingsINR > 0;
 
-  // Monthly calculations for parents
   const monthlySalary = stats.expectedCTCINR / 12;
   const monthlyTax = stats.taxDeductionINR / 12;
   const monthlyLiving = stats.postGradLivingCostINR / 12;
@@ -879,8 +941,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
 
   return (
     <div className="p-10 space-y-6 text-slate-900 bg-white">
-      
-      {/* Official Document Header */}
       <div className="border-b-4 border-slate-900 pb-6 flex justify-between items-center">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -899,7 +959,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
         </div>
       </div>
 
-      {/* Trust Summary Box */}
       <div className="bg-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm flex items-start gap-4 break-inside-avoid">
         <Info size={24} className="text-blue-600 shrink-0 mt-1"/> 
         <div>
@@ -911,7 +970,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
       </div>
 
       <div className="grid grid-cols-2 gap-8 break-inside-avoid">
-        {/* Section 1: Capital & Loan */}
         <div className="space-y-4">
           <h3 className="text-xl font-bold border-b-2 border-slate-200 pb-2 flex items-center gap-2">
             <Target size={20} className="text-slate-500" /> Capital Requirement
@@ -933,7 +991,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
           </div>
         </div>
 
-        {/* Section 2: Returns */}
         <div className="space-y-4">
           <h3 className="text-xl font-bold border-b-2 border-slate-200 pb-2 flex items-center gap-2">
             <TrendingUp size={20} className="text-emerald-500" /> Expected Returns
@@ -956,7 +1013,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
         </div>
       </div>
 
-      {/* Section 3: Annual Cashflow (1:1 with Dashboard) */}
       <div className="mt-6">
         <h3 className="text-xl font-bold border-b-2 border-slate-200 pb-2 mb-4 flex items-center gap-2">
           <PiggyBank size={20} className="text-slate-500"/> Annual Cashflow Analysis (First Year Reality)
@@ -992,7 +1048,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
           </table>
         </div>
 
-        {/* NEW: Parent's Monthly Snapshot */}
         <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 shadow-sm break-inside-avoid">
           <h4 className="font-bold text-blue-900 mb-3 text-sm flex items-center gap-2">
             <Calculator size={16} className="text-blue-600" /> Parent's Quick View: Monthly Snapshot
@@ -1018,7 +1073,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
         </div>
       </div>
 
-      {/* Section 4: Risk Mitigations (Trust Builder) */}
       <div className="grid grid-cols-2 gap-6 mt-6 break-inside-avoid">
         <div className="bg-slate-50 rounded-xl p-5 border border-slate-200">
            <h4 className="font-bold text-slate-800 mb-3 text-sm uppercase tracking-wider flex items-center gap-2">
@@ -1031,7 +1085,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
            </ul>
         </div>
         
-        {/* AI Verdict */}
         <div className={`rounded-xl p-5 border-2 ${isSafe ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`}>
           <div className="flex items-center gap-2 mb-2">
             {isSafe ? <CheckCircle className="text-green-600" size={20}/> : <ShieldAlert className="text-red-600" size={20}/>}
@@ -1047,7 +1100,6 @@ function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPe
         </div>
       </div>
       
-      {/* Footer Branding */}
       <div className="text-center pt-6 pb-2 text-xs text-slate-400 font-medium mt-8 border-t border-slate-200">
         Generated by the Unified Student Engagement Platform • Strict Reality-Check Financial Model • Page 1 of 1
       </div>
