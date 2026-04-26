@@ -86,25 +86,23 @@ export async function parseDocumentWithAI(base64Data: string, mimeType: string) 
   const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
-  const promptText = `You are an expert Study Abroad Offer Letter Parser. 
+  const promptText = `You are an expert Study Abroad Financial Analyst. 
   
-CRITICAL GUARDRAIL: First, verify if the provided image/document is an Admission Offer Letter from a University/College. 
-If it is a JOB OFFER, an irrelevant image, or a random document, YOU MUST REJECT IT by returning exactly this JSON:
+CRITICAL GUARDRAIL: Verify if the document is an Admission Offer Letter. 
+If it is a JOB OFFER, or irrelevant, REJECT IT by returning:
 {
   "error": "Invalid Document: Ye ek Job Offer ya alag document lag raha hai. Kripya kisi University ka Admission Offer Letter upload karein."
 }
 
-If and ONLY IF it is a valid University Admission Letter, extract the following information and return ONLY a raw JSON object (no markdown, no backticks):
+If VALID, extract/estimate this info. Follow STRICT GEO-REALITY rules (e.g., European public universities have very low fees ~$3000 USD, and European non-tech salaries are much lower than US Tech salaries). Return ONLY raw JSON:
 {
   "university_name": (string, null if not found),
   "course_name": (string, null if not found),
-  "tuition_fee_usd": (number, extract the annual tuition fee. If in another currency, give the rough USD equivalent number ONLY. If not explicitly found, estimate based on real-world data for this university),
-  "living_cost_usd": (number, extract the estimated annual living expenses. If NOT mentioned, use your real-world knowledge to ESTIMATE the accurate annual living cost in USD for the university's city/country),
-  "duration_years": (number, extract if mentioned. If NOT mentioned, use your real-world knowledge to estimate typical duration, e.g., 2 for Master's, 4 for Bachelor's),
-  "expected_salary_usd": (number, use your real-world knowledge to ESTIMATE the realistic AVERAGE starting base salary in USD for a graduate from this specific program and university)
-}
-
-Output ONLY valid JSON.`;
+  "tuition_fee_usd": (number, exact if found, else REALISTIC estimate for this country/course),
+  "living_cost_usd": (number, exact if found, else REALISTIC estimate for this country),
+  "duration_years": (number, typically 1, 1.5, 2, 3, or 4),
+  "expected_salary_usd": (number, STRICTLY REALISTIC starting base salary in USD for this field IN THIS SPECIFIC COUNTRY. Do NOT inflate with US salaries if it's outside the US)
+}`;
 
   while (attempts < maxAttempts) {
     try {
@@ -214,12 +212,6 @@ export default function App() {
   const [isParsingDoc, setIsParsingDoc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [showLoanModal, setShowLoanModal] = useState(false);
-  const [cgpa, setCgpa] = useState('');
-  const [collateral, setCollateral] = useState('no');
-  const [loanAIResult, setLoanAIResult] = useState('');
-  const [isLoanAILoading, setIsLoanAILoading] = useState(false);
-
   useEffect(() => {
     const script = document.createElement('script');
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
@@ -249,26 +241,25 @@ export default function App() {
     setIsAILoading(true);
     setAiError(''); 
     try {
-      // YAHAN FIX KIYA: Prompt ko lenient banaya for typos (bcs) and missing universities.
-      const prompt = `You are a strict, data-driven Study Abroad Financial Analyst. Analyze the following user input: "${customProgramName}".
+      const prompt = `You are a strict, data-driven Study Abroad Financial Analyst. Analyze this user input: "${customProgramName}".
 
-      CRITICAL GUARDRAIL: Check if this input is related to a Higher Education Degree Program (like Bachelors, Masters, MBA, PhD, etc.).
+      CRITICAL GUARDRAIL: Check if this input is related to a Higher Education Degree Program.
       - BE LENIENT with typos (e.g., "bcs" = BSc, "btech" = B.Tech).
-      - ACCEPT generic locations even if a specific university is NOT mentioned (e.g., "BSc Chemistry at France" is VALID. Provide average national data for France).
-      - ONLY REJECT if the input is completely irrelevant, like a Job Offer, a random string, or a company name.
+      - ACCEPT generic locations (e.g., "BSc Chemistry at France").
+      - ONLY REJECT if it is a Job Offer or random string.
       
       If it must be rejected, return exactly this JSON:
       {
         "error": "Invalid Input: Ye kisi course ka naam nahi lag raha. Kripya sahi details dalein (e.g., MS in CS in USA)."
       }
 
-      If VALID, follow these Strict Rules to provide current (2025/2026) data:
-      1. Tuition: Provide the average international student tuition fee per year in USD for this degree/country.
-      2. Living Cost: Provide the average current annual cost of living/rent in USD for that country/city.
-      3. Salary: Provide the realistic AVERAGE starting base salary (CTC) in USD for a graduate in this field.
-      4. Tax Rate: Provide the average income tax percentage for that country (as a decimal, e.g., 0.35).
+      If VALID, follow these STRICT GEO-REALITY Rules for 2025/2026:
+      1. Tuition: Provide average international student tuition per year in USD. CRITICAL: For European countries (France, Germany, etc.), public universities have very low fees (often ~$3000/yr). Do NOT inflate this.
+      2. Living Cost: Average current annual living cost in USD for THAT specific country.
+      3. Salary: Provide STRICTLY REALISTIC average starting base salary in USD for a fresh graduate in THIS EXACT FIELD and COUNTRY. Do NOT apply US Tech salaries to European or non-tech degrees. (e.g., BSc Chemistry in France earns ~$30k-$40k USD, NOT $80k+).
+      4. Tax Rate: Average income tax percentage for that country (decimal, e.g., 0.35).
       
-      Return ONLY a valid JSON object with NO markdown formatting. Use these exact keys:
+      Return ONLY a valid JSON object with NO markdown formatting:
       {
         "baseTuitionUSD": (number),
         "baseLivingUSD": (number),
@@ -348,7 +339,6 @@ export default function App() {
             if (aiData.tuition_fee_usd) setTuitionUSD(aiData.tuition_fee_usd);
             if (aiData.living_cost_usd) setLivingUSD(aiData.living_cost_usd);
             if (aiData.duration_years) setDurationYears(aiData.duration_years);
-            
             if (aiData.expected_salary_usd) setSalaryUSD(aiData.expected_salary_usd);
             
             const customIdx = PROGRAMS.findIndex(p => p.id === 'custom');
@@ -458,23 +448,6 @@ export default function App() {
         alert("PDF generate karne me problem hui. Kripya page refresh karke try karein.");
       });
     }, 300);
-  };
-
-  const checkLoanEligibility = async () => {
-    if (!cgpa) return;
-    setIsLoanAILoading(true);
-    setLoanAIResult('');
-    
-    try {
-      const prompt = `Act as an expert Indian Education Loan Advisor. A student wants an education loan of ${formatINR(stats.loanAmountINR)}. Their CGPA is ${cgpa} out of 10. Collateral available: ${collateral}. Based on current Indian market trends (SBI, HDFC, Credila, etc.), give a short 2-3 line realistic prediction in Hinglish/English: which bank is best, estimated interest rate, and a quick encouraging remark. Do not use markdown formatting. Make it sound like a real agent advising them.`;
-      
-      const result = await getUniversityData(prompt);
-      setLoanAIResult(result || "Aapko SBI ya HDFC se easily 10.5% pe loan mil jayega. Click Apply Now!");
-    } catch (error) {
-      setLoanAIResult("Aapke profile ke hisaab se SBI Global Ed-Vantage ya HDFC Credila best rahega (approx 10.5% - 11.5% interest rate). Aap directly apply kar sakte hain.");
-    } finally {
-      setIsLoanAILoading(false);
-    }
   };
 
   return (
@@ -786,7 +759,6 @@ export default function App() {
                       </div>
                     </button>
 
-                    {/* RESTORED: Apply Now navigates to loan estimator */}
                     <div 
                       className="bg-slate-900 rounded-2xl p-4 flex flex-row items-center justify-between text-white shadow-lg relative overflow-hidden group hover:bg-slate-800 transition-colors cursor-pointer" 
                       onClick={() => handleNavigation('loan')}
@@ -810,7 +782,6 @@ export default function App() {
         </div>
       </div>
 
-      {/* Parent PDF Preview Modal */}
       {showReportPreview && calculated && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -852,7 +823,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Hidden layout specifically for print generation */}
       <div className="hidden print:block absolute top-0 left-0 w-full bg-white text-black">
          <PrintableReportLayout stats={stats} activeProgramName={activeProgramName} durationYears={durationYears} loanPercent={loanPercent} interestRate={interestRate} />
       </div>
