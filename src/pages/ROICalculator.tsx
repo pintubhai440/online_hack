@@ -24,11 +24,13 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-// 1. Safe API Key Setup (Avoids import.meta compilation errors in ES2015 targets)
-const apiKey = ""; 
-const parsedKeys = typeof apiKey === 'string' ? apiKey.split(',').map(key => key.trim()).filter(key => key.length > 0) : [];
+// 1. Vercel Environment Variables se API keys uthana (Safe Vite Standard)
+const apiKeysString = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) 
+  ? import.meta.env.VITE_GEMINI_API_KEY 
+  : "";
+const parsedKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
 
-// Fallback: Agar key set nahi hai, toh code crash nahi hoga
+// Fallback: Agar Vercel me key set nahi hai, toh code crash nahi hoga
 const apiKeys = parsedKeys.length > 0 ? parsedKeys : [""];
 
 // 2. Global index taaki yaad rahe aakhiri baar konsi key use hui thi
