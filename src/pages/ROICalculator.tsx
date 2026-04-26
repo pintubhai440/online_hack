@@ -175,7 +175,7 @@ const formatUSD = (amount: number) => {
 };
 
 // Assuming 1 USD = 83.5 INR for fixed conversion
-const USD_TO_INR = 83.5;
+const USD_TO_INR = 92.5;
 
 // --- Types & Interfaces ---
 interface ProgramData {
