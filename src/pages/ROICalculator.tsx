@@ -167,7 +167,7 @@ const formatUSD = (amount) => {
   }).format(amount);
 };
 
-// Assuming 1 USD = 94.5 INR for fixed conversion
+// Assuming 1 USD = 83.5 INR for fixed conversion
 const USD_TO_INR = 83.5;
 
 // --- Mock Database ---
@@ -242,21 +242,41 @@ export default function App() {
     setIsAILoading(true);
     setAiError(''); 
     try {
-      const prompt = `You are a strict, data-driven Study Abroad Financial Analyst. Provide factual, current (2025/2026) real-world cost and salary data for: "${customProgramName}".
-      Rules:
-      1. baseTuitionUSD: Out-of-state/international annual tuition.
-      2. baseLivingUSD: Annual living cost in that specific city.
-      3. expectedCTCUSD: Realistic AVERAGE starting base salary (CTC) for an international graduate.
-      4. taxRate: Average income tax percentage (decimal, e.g., 0.35).
-      5. postGradLivingCostUSD: Annual post-grad living cost in USD.
+      const prompt = `You are a strict, data-driven Study Abroad Financial Analyst. Analyze the following user input: "${customProgramName}".
+
+      CRITICAL GUARDRAIL: First, check if this input is a valid Higher Education Degree Program (e.g., MS, MBA, BSc) at a valid University or Country. 
+      If the input is a Job Offer, a company name, a random string, or NOT an educational program, YOU MUST REJECT IT by returning exactly this JSON:
+      {
+        "error": "Invalid Input: This looks like a job or irrelevant text. Please enter a valid University Program (e.g., MS in CS at TUM Germany)."
+      }
+
+      If and ONLY IF it is a valid educational program, follow these Strict Rules to provide current (2025/2026) data:
+      1. Tuition: DO NOT guess. Use the actual international student tuition fee per year.
+      2. Living Cost: Must reflect the actual current cost of rent/food in that specific city/country.
+      3. Salary: Provide the realistic AVERAGE starting base salary (CTC) in USD for a graduate in this specific field.
+      4. Tax Rate: Accurate average income tax percentage (as a decimal, e.g., 0.35).
       
-      Return ONLY valid JSON matching these keys.`;
+      Return ONLY a valid JSON object with NO markdown formatting. Use these exact keys:
+      {
+        "baseTuitionUSD": (number),
+        "baseLivingUSD": (number),
+        "expectedCTCUSD": (number),
+        "taxRate": (number),
+        "postGradLivingCostUSD": (number)
+      }`;
 
       const responseText = await getUniversityData(prompt);
       
       if (responseText) {
         const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(cleanedText);
+
+        // NAYA CODE: Agar AI ne reject kar diya toh error dikhao
+        if (aiData.error) {
+           setAiError(aiData.error);
+           setIsAILoading(false);
+           return; // Yahi se wapas laut jao, sliders update mat karo
+        }
 
         if (aiData.baseTuitionUSD) setTuitionUSD(aiData.baseTuitionUSD);
         if (aiData.baseLivingUSD) setLivingUSD(aiData.baseLivingUSD);
