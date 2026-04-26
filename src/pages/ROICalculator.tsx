@@ -91,20 +91,28 @@ export async function getUniversityData(promptText: string) {
   }
 }
 
-// --- Naya AI Parser Function Add Kiya (PDF/Image Ke Liye) ---
+// --- UPDATED AI Parser Function (Magic Upload Guardrails ke saath) ---
 export async function parseDocumentWithAI(base64Data: string, mimeType: string) {
   let attempts = 0;
   const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
-  // AI ko strict rules de rahe hain taaki wo sirf JSON de
+  // NAYA PROMPT: Strict rules laga diye hain yahan bhi
   const promptText = `You are an expert Study Abroad Offer Letter Parser. 
-Extract the following information from the provided document/image and return ONLY a raw JSON object (no markdown, no backticks).
-Required JSON keys:
-- "university_name" (string, null if not found)
-- "course_name" (string, null if not found)
-- "tuition_fee_usd" (number, extract the annual tuition fee. If in another currency, give the rough USD equivalent number ONLY, null if not found)
-- "duration_years" (number, typically 1, 1.5, or 2, null if not found)
+  
+CRITICAL GUARDRAIL: First, verify if the provided image/document is an Admission Offer Letter from a University/College. 
+If it is a JOB OFFER, an irrelevant image, or a random document, YOU MUST REJECT IT by returning exactly this JSON:
+{
+  "error": "Invalid Document: Ye ek Job Offer ya alag document lag raha hai. Kripya kisi University ka Admission Offer Letter upload karein."
+}
+
+If and ONLY IF it is a valid University Admission Letter, extract the following information and return ONLY a raw JSON object (no markdown, no backticks):
+{
+  "university_name": (string, null if not found),
+  "course_name": (string, null if not found),
+  "tuition_fee_usd": (number, extract the annual tuition fee. If in another currency, give the rough USD equivalent number ONLY, null if not found),
+  "duration_years": (number, typically 1, 1.5, or 2, null if not found)
+}
 
 Output ONLY valid JSON.`;
 
@@ -113,7 +121,7 @@ Output ONLY valid JSON.`;
       const currentKey = apiKeys[currentKeyIndex % apiKeys.length];
       if (!currentKey) throw new Error("API Key missing.");
 
-      // Hum gemini-2.5-flash-lite use kar rahe hain kyunki ye images aur PDF padhne me fast hai
+      // Hum gemini-2.5-flash-lite use kar rahe hain
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${currentKey}`;
       
       const response = await fetch(url, {
@@ -285,11 +293,10 @@ export default function App() {
         const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(cleanedText);
 
-        // NAYA CODE: Agar AI ne reject kar diya toh error dikhao
         if (aiData.error) {
            setAiError(aiData.error);
            setIsAILoading(false);
-           return; // Yahi se wapas laut jao, sliders update mat karo
+           return; 
         }
 
         if (aiData.baseTuitionUSD) setTuitionUSD(aiData.baseTuitionUSD);
@@ -312,7 +319,7 @@ export default function App() {
     }
   };
 
-  // --- Handle File Upload Logic ---
+  // --- UPDATED Handle File Upload Logic (Silent failure fixed) ---
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -322,7 +329,7 @@ export default function App() {
 
     try {
       const reader = new FileReader();
-      reader.readAsDataURL(file); // File ko Base64 format me convert kar rahe hain
+      reader.readAsDataURL(file); 
       
       reader.onload = async () => {
         try {
@@ -333,18 +340,27 @@ export default function App() {
           const responseText = await parseDocumentWithAI(base64Data, mimeType);
 
           if (responseText) {
-            // Markdown hata kar pure JSON me convert kar rahe hain
             const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
             const aiData = JSON.parse(cleanedText);
 
-            // Agar data mila toh automatically sliders aur text fields update kar do
+            // NAYA CODE: AI Guardrail Error Check
+            if (aiData.error) {
+                setAiError(aiData.error);
+                return; // UI update mat karo, sirf error dikhao
+            }
+
+            // NAYA CODE: Agar valid JSON diya par sab 'null' tha (Silent failure catch)
+            if (!aiData.university_name && !aiData.course_name && !aiData.tuition_fee_usd) {
+                setAiError("Document padha gaya, par koi University Name ya Fees nahi mili. Kya document clear hai?");
+                return;
+            }
+
             if (aiData.university_name || aiData.course_name) {
               setCustomProgramName(`${aiData.course_name || 'Program'} at ${aiData.university_name || 'University'}`);
             }
             if (aiData.tuition_fee_usd) setTuitionUSD(aiData.tuition_fee_usd);
             if (aiData.duration_years) setDurationYears(aiData.duration_years);
             
-            // UI ko automatically "Custom Program" wale tab par switch kar do
             const customIdx = PROGRAMS.findIndex(p => p.id === 'custom');
             if (customIdx !== -1) {
               setSelectedProgramIdx(customIdx);
@@ -357,7 +373,7 @@ export default function App() {
           setAiError("Offer letter padhne me problem hui. Kya document theek hai?");
         } finally {
           setIsParsingDoc(false);
-          if (fileInputRef.current) fileInputRef.current.value = ''; // Input ko clear kiya taaki same file dobara dal sakein
+          if (fileInputRef.current) fileInputRef.current.value = ''; 
         }
       };
       reader.onerror = () => { throw new Error("File read error"); };
@@ -427,24 +443,23 @@ export default function App() {
     
     setIsDownloading(true);
     
-    // Thoda delay taaki "Generating PDF..." UI dikh sake aur modal stable ho jaye
     setTimeout(() => {
       const element = document.getElementById('pdf-report-content');
       
       const opt = {
-        margin:       [12, 0, 15, 0], // FIX: Top me 12mm aur Bottom me 15mm ka space add kiya hai
+        margin:       [12, 0, 15, 0], 
         filename:     `ROI_Report_${activeProgramName.replace(/\s+/g, '_')}.pdf`,
         image:        { type: 'jpeg', quality: 0.98 },
         html2canvas:  { 
           scale: 2, 
           useCORS: true, 
           logging: false,
-          scrollY: 0, // IMPORTANT: Yeh fix karta hai scroll karke blank aane wali problem ko
+          scrollY: 0, 
           scrollX: 0,
-          backgroundColor: '#ffffff' // Ensure background is pure white
+          backgroundColor: '#ffffff'
         },
         jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.break-inside-avoid'] } // FIX: Table rows aur cards ko beech se cut hone se rokega
+        pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.break-inside-avoid'] } 
       };
 
       (window as any).html2pdf().set(opt).from(element).save().then(() => {
@@ -520,6 +535,13 @@ export default function App() {
                       <><Sparkles size={18} className="text-yellow-200" /> Upload Offer Letter 🪄</>
                     )}
                   </button>
+                  {/* Validation Error specifically for AI upload failures */}
+                  {aiError && (
+                    <p className="text-xs text-red-600 mt-3 font-bold bg-red-50 p-2.5 rounded-lg border border-red-200">
+                      <AlertCircle className="inline mr-1 -mt-0.5" size={14}/>
+                      {aiError}
+                    </p>
+                  )}
                 </div>
                 {/* --- MAGIC UPLOAD BUTTON END --- */}
 
@@ -556,11 +578,6 @@ export default function App() {
                         <><Sparkles size={16} className="text-emerald-400" /> Auto-Fill with AI</>
                       )}
                     </button>
-                    {aiError && (
-                      <p className="text-xs text-red-500 mt-2 font-medium bg-red-50 p-2 rounded text-center border border-red-100">
-                        {aiError}
-                      </p>
-                    )}
                     <p className="text-[10px] text-slate-500 mt-2 text-center">
                       Gemini AI real market data fetch karke sliders set karega.
                     </p>
