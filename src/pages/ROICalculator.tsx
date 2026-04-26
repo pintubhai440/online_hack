@@ -114,8 +114,8 @@ Output ONLY valid JSON.`;
       const currentKey = apiKeys[currentKeyIndex % apiKeys.length];
       if (!currentKey) throw new Error("API Key missing.");
 
-      // Hum gemini-1.5-flash use kar rahe hain kyunki ye images aur PDF padhne me fast hai
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
+      // Hum gemini-2.5-flash-lite use kar rahe hain kyunki ye images aur PDF padhne me fast hai
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${currentKey}`;
       
       const response = await fetch(url, {
         method: "POST",
@@ -167,7 +167,7 @@ const formatUSD = (amount) => {
   }).format(amount);
 };
 
-// Assuming 1 USD = 83.5 INR for fixed conversion
+// Assuming 1 USD = 94.5 INR for fixed conversion
 const USD_TO_INR = 83.5;
 
 // --- Mock Database ---
