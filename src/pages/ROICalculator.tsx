@@ -24,9 +24,9 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-// 1. API key setup (Safe configuration to avoid compilation errors)
+// 1. Safe API Key Setup (Avoids import.meta compilation errors in ES2015 targets)
 const apiKey = ""; 
-const parsedKeys = apiKey.split(',').map(key => key.trim()).filter(key => key.length > 0);
+const parsedKeys = typeof apiKey === 'string' ? apiKey.split(',').map(key => key.trim()).filter(key => key.length > 0) : [];
 
 // Fallback: Agar key set nahi hai, toh code crash nahi hoga
 const apiKeys = parsedKeys.length > 0 ? parsedKeys : [""];
