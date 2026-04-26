@@ -84,12 +84,13 @@ export async function getUniversityData(promptText: string) {
   }
 }
 
-// --- AI Parser Function (Magic Upload Guardrails ke saath) ---
+// --- UPDATED AI Parser Function (Magic Upload Guardrails ke saath) ---
 export async function parseDocumentWithAI(base64Data: string, mimeType: string) {
   let attempts = 0;
   const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
+  // NAYA PROMPT: Ab AI explicitly Living Cost nikalega ya real-world se estimate karega
   const promptText = `You are an expert Study Abroad Offer Letter Parser. 
   
 CRITICAL GUARDRAIL: First, verify if the provided image/document is an Admission Offer Letter from a University/College. 
@@ -102,8 +103,9 @@ If and ONLY IF it is a valid University Admission Letter, extract the following 
 {
   "university_name": (string, null if not found),
   "course_name": (string, null if not found),
-  "tuition_fee_usd": (number, extract the annual tuition fee. If in another currency, give the rough USD equivalent number ONLY, null if not found),
-  "duration_years": (number, typically 1, 1.5, or 2, null if not found)
+  "tuition_fee_usd": (number, extract the annual tuition fee. If in another currency, give the rough USD equivalent number ONLY. If not explicitly found, estimate based on real-world data for this university),
+  "living_cost_usd": (number, extract the estimated annual living expenses. If NOT mentioned, use your real-world knowledge to ESTIMATE the accurate annual living cost in USD for the university's city/country),
+  "duration_years": (number, extract if mentioned. If NOT mentioned, use your real-world knowledge to estimate typical duration, e.g., 2 for Master's, 4 for Bachelor's)
 }
 
 Output ONLY valid JSON.`;
@@ -164,6 +166,7 @@ const formatUSD = (amount: number) => {
   }).format(amount);
 };
 
+// Fixed conversion rate (Jo pehle set kiya tha)
 const USD_TO_INR = 92.5;
 
 interface ProgramData {
@@ -189,7 +192,7 @@ const PROGRAMS: ProgramData[] = [
 
 export default function App() {
   const handleNavigation = (page: string) => {
-      console.log(`Navigating to ${page}...`);
+      console.log(`Navigating to ${page}... (Navigation Mocked)`);
   }
 
   const [selectedProgramIdx, setSelectedProgramIdx] = useState<number>(0);
@@ -215,6 +218,12 @@ export default function App() {
 
   const [isParsingDoc, setIsParsingDoc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [showLoanModal, setShowLoanModal] = useState(false);
+  const [cgpa, setCgpa] = useState('');
+  const [collateral, setCollateral] = useState('no');
+  const [loanAIResult, setLoanAIResult] = useState('');
+  const [isLoanAILoading, setIsLoanAILoading] = useState(false);
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -328,7 +337,7 @@ export default function App() {
                 return; 
             }
 
-            if (!aiData.university_name && !aiData.course_name && !aiData.tuition_fee_usd) {
+            if (!aiData.university_name && !aiData.course_name && !aiData.tuition_fee_usd && !aiData.living_cost_usd) {
                 setAiError("Document padha gaya, par koi University Name ya Fees nahi mili. Kya document clear hai?");
                 return;
             }
@@ -337,6 +346,9 @@ export default function App() {
               setCustomProgramName(`${aiData.course_name || 'Program'} at ${aiData.university_name || 'University'}`);
             }
             if (aiData.tuition_fee_usd) setTuitionUSD(aiData.tuition_fee_usd);
+            
+            // --- FIXED: Ab living cost aur duration dono sliders automatically update honge ---
+            if (aiData.living_cost_usd) setLivingUSD(aiData.living_cost_usd);
             if (aiData.duration_years) setDurationYears(aiData.duration_years);
             
             const customIdx = PROGRAMS.findIndex(p => p.id === 'custom');
@@ -448,6 +460,23 @@ export default function App() {
     }, 300);
   };
 
+  const checkLoanEligibility = async () => {
+    if (!cgpa) return;
+    setIsLoanAILoading(true);
+    setLoanAIResult('');
+    
+    try {
+      const prompt = `Act as an expert Indian Education Loan Advisor. A student wants an education loan of ${formatINR(stats.loanAmountINR)}. Their CGPA is ${cgpa} out of 10. Collateral available: ${collateral}. Based on current Indian market trends (SBI, HDFC, Credila, etc.), give a short 2-3 line realistic prediction in Hinglish/English: which bank is best, estimated interest rate, and a quick encouraging remark. Do not use markdown formatting. Make it sound like a real agent advising them.`;
+      
+      const result = await getUniversityData(prompt);
+      setLoanAIResult(result || "Aapko SBI ya HDFC se easily 10.5% pe loan mil jayega. Click Apply Now!");
+    } catch (error) {
+      setLoanAIResult("Aapke profile ke hisaab se SBI Global Ed-Vantage ya HDFC Credila best rahega (approx 10.5% - 11.5% interest rate). Aap directly apply kar sakte hain.");
+    } finally {
+      setIsLoanAILoading(false);
+    }
+  };
+
   return (
     <>
       <div className="min-h-screen bg-slate-50 pt-16 print:hidden">
@@ -455,7 +484,7 @@ export default function App() {
           
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
             <div className="flex items-center gap-4">
-               <button onClick={() => handleNavigation('loan')} className="p-2 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
+               <button onClick={() => handleNavigation('dashboard')} className="p-2 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
                  <ChevronLeft className="w-5 h-5 text-slate-600" />
                </button>
               <div>
@@ -757,11 +786,7 @@ export default function App() {
                       </div>
                     </button>
 
-                    {/* RESTORED: Apply Now navigates to loan estimator */}
-                    <div 
-                      className="bg-slate-900 rounded-2xl p-4 flex flex-row items-center justify-between text-white shadow-lg relative overflow-hidden group hover:bg-slate-800 transition-colors cursor-pointer" 
-                      onClick={() => handleNavigation('loan')}
-                    >
+                    <div className="bg-slate-900 rounded-2xl p-4 flex flex-row items-center justify-between text-white shadow-lg relative overflow-hidden group hover:bg-slate-800 transition-colors cursor-pointer" onClick={() => handleNavigation('loan')}>
                       <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
                           <GraduationCap size={100} />
                       </div>
@@ -780,6 +805,74 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {showLoanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+              <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <GraduationCap className="text-emerald-600" size={24}/>
+                Loan Eligibility Check
+              </h2>
+              <button onClick={() => setShowLoanModal(false)} className="p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-800 rounded-xl transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm text-blue-800 flex justify-between items-center">
+                <span className="font-bold">Required Loan:</span>
+                <span className="font-black text-lg">{formatINR(stats.loanAmountINR)}</span>
+              </div>
+              
+              <div>
+                <label className="text-sm font-bold text-slate-700 block mb-1.5">Apna CGPA dalein (Out of 10)</label>
+                <input 
+                  type="number" 
+                  max="10" min="0" step="0.1" 
+                  value={cgpa} 
+                  onChange={(e) => setCgpa(e.target.value)} 
+                  placeholder="e.g. 8.5" 
+                  className="w-full px-4 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                />
+              </div>
+              
+              <div>
+                <label className="text-sm font-bold text-slate-700 block mb-1.5">Kya aapke paas Collateral (Property/FD) hai?</label>
+                <div className="flex gap-3">
+                  <button onClick={() => setCollateral('yes')} className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition-colors ${collateral === 'yes' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Haan (Yes)</button>
+                  <button onClick={() => setCollateral('no')} className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition-colors ${collateral === 'no' ? 'bg-emerald-100 border-emerald-500 text-emerald-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>Nahi (No)</button>
+                </div>
+              </div>
+
+              {!loanAIResult ? (
+                <button 
+                  onClick={checkLoanEligibility} 
+                  disabled={isLoanAILoading || !cgpa} 
+                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 mt-2"
+                >
+                  {isLoanAILoading ? (
+                    <><Loader2 size={18} className="animate-spin" /> AI Agent Check Kar Raha Hai...</>
+                  ) : (
+                    <><Sparkles size={18} className="text-yellow-400"/> Ask AI for Loan Options</>
+                  )}
+                </button>
+              ) : (
+                <div className="bg-emerald-50 p-5 rounded-xl border border-emerald-200 mt-4 animate-in slide-in-from-bottom-2">
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="bg-emerald-100 p-2 rounded-full text-emerald-600 shrink-0">
+                      <CheckCircle size={20} />
+                    </div>
+                    <p className="text-sm text-emerald-900 font-medium leading-relaxed">{loanAIResult}</p>
+                  </div>
+                  <a href="https://www.sbi.co.in/web/personal-banking/loans/education-loans" target="_blank" rel="noreferrer" className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl transition-colors shadow-sm">
+                    Click here to Apply Directly
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showReportPreview && calculated && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden">
