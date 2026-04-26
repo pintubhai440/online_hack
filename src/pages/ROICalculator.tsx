@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   Calculator, 
   TrendingUp, 
@@ -24,13 +24,11 @@ import {
   ShieldAlert
 } from 'lucide-react';
 
-// 1. Vercel Environment Variables se API keys uthana (Safe Vite Standard)
-const apiKeysString = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) 
-  ? import.meta.env.VITE_GEMINI_API_KEY 
-  : "";
-const parsedKeys = apiKeysString.split(',').map(key => key.trim()).filter(key => key.length > 0);
+// 1. API key setup (Safe configuration to avoid compilation errors)
+const apiKey = ""; 
+const parsedKeys = apiKey.split(',').map(key => key.trim()).filter(key => key.length > 0);
 
-// Fallback: Agar Vercel me key set nahi hai, toh code crash nahi hoga
+// Fallback: Agar key set nahi hai, toh code crash nahi hoga
 const apiKeys = parsedKeys.length > 0 ? parsedKeys : [""];
 
 // 2. Global index taaki yaad rahe aakhiri baar konsi key use hui thi
@@ -85,6 +83,64 @@ export async function getUniversityData(promptText) {
       }
       
       // Chota sa break lo aur wapas try karo (Exponential Backoff)
+      const delay = delays[attempts] || 2000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+      attempts++;
+    }
+  }
+}
+
+// --- Naya AI Parser Function Add Kiya ---
+export async function parseDocumentWithAI(base64Data, mimeType) {
+  let attempts = 0;
+  const maxAttempts = Math.max(5, apiKeys.length); 
+  const delays = [1000, 2000, 4000, 8000, 16000];
+
+  // AI ko strict rules de rahe hain taaki wo sirf JSON de
+  const promptText = `You are an expert Study Abroad Offer Letter Parser. 
+Extract the following information from the provided document/image and return ONLY a raw JSON object (no markdown, no backticks).
+Required JSON keys:
+- "university_name" (string, null if not found)
+- "course_name" (string, null if not found)
+- "tuition_fee_usd" (number, extract the annual tuition fee. If in another currency, give the rough USD equivalent number ONLY, null if not found)
+- "duration_years" (number, typically 1, 1.5, or 2, null if not found)
+
+Output ONLY valid JSON.`;
+
+  while (attempts < maxAttempts) {
+    try {
+      const currentKey = apiKeys[currentKeyIndex % apiKeys.length];
+      if (!currentKey) throw new Error("API Key missing.");
+
+      // Hum gemini-1.5-flash use kar rahe hain kyunki ye images aur PDF padhne me fast hai
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${currentKey}`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ 
+            parts: [
+              { text: promptText },
+              { inlineData: { mimeType, data: base64Data } }
+            ] 
+          }],
+          generationConfig: { temperature: 0.1 } // Ekdum factual
+        })
+      });
+      
+      if (!response.ok) {
+         if (response.status === 403 || response.status === 429) {
+             currentKeyIndex++; 
+         }
+         throw new Error(`HTTP Error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return result.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+    } catch (error) {
+      if (attempts >= maxAttempts - 1) throw error;
       const delay = delays[attempts] || 2000;
       await new Promise(resolve => setTimeout(resolve, delay));
       attempts++;
@@ -152,6 +208,10 @@ export default function App() {
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false); 
 
+  // --- Magic File Upload State ---
+  const [isParsingDoc, setIsParsingDoc] = useState(false);
+  const fileInputRef = useRef(null);
+
   // Load html2pdf library dynamically
   useEffect(() => {
     const script = document.createElement('script');
@@ -213,6 +273,61 @@ export default function App() {
       }
     } finally {
       setIsAILoading(false);
+    }
+  };
+
+  // --- Naya Handle File Upload Logic ---
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsParsingDoc(true);
+    setAiError('');
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(file); // File ko Base64 format me convert kar rahe hain
+      
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result.split(',')[1];
+          const mimeType = file.type;
+
+          const responseText = await parseDocumentWithAI(base64Data, mimeType);
+
+          if (responseText) {
+            // Markdown hata kar pure JSON me convert kar rahe hain
+            const cleanedText = responseText.replace(/```json/gi, '').replace(/```/g, '').trim();
+            const aiData = JSON.parse(cleanedText);
+
+            // Agar data mila toh automatically sliders aur text fields update kar do
+            if (aiData.university_name || aiData.course_name) {
+              setCustomProgramName(`${aiData.course_name || 'Program'} at ${aiData.university_name || 'University'}`);
+            }
+            if (aiData.tuition_fee_usd) setTuitionUSD(aiData.tuition_fee_usd);
+            if (aiData.duration_years) setDurationYears(aiData.duration_years);
+            
+            // UI ko automatically "Custom Program" wale tab par switch kar do
+            const customIdx = PROGRAMS.findIndex(p => p.id === 'custom');
+            if (customIdx !== -1) {
+              setSelectedProgramIdx(customIdx);
+            }
+            
+            setCalculated(false);
+          }
+        } catch (err) {
+          console.error("Parse Error:", err);
+          setAiError("Offer letter padhne me problem hui. Kya document theek hai?");
+        } finally {
+          setIsParsingDoc(false);
+          if (fileInputRef.current) fileInputRef.current.value = ''; // Input ko clear kiya taaki same file dobara dal sakein
+        }
+      };
+      reader.onerror = () => { throw new Error("File read error"); };
+    } catch (error) {
+      console.error("File Read Error:", error);
+      setAiError("File upload me kuch gadbad ho gayi.");
+      setIsParsingDoc(false);
     }
   };
 
@@ -345,6 +460,30 @@ export default function App() {
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center justify-between">
                   <span>Program Selection</span>
                 </h3>
+
+                {/* --- MAGIC UPLOAD BUTTON START --- */}
+                <div className="mb-4">
+                  <input 
+                    type="file" 
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    ref={fileInputRef}
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isParsingDoc}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:shadow-lg transition-all disabled:opacity-50"
+                  >
+                    {isParsingDoc ? (
+                      <><Loader2 className="animate-spin" size={18} /> Offer Letter Padh Raha Hu...</>
+                    ) : (
+                      <><Sparkles size={18} className="text-yellow-200" /> Upload Offer Letter 🪄</>
+                    )}
+                  </button>
+                </div>
+                {/* --- MAGIC UPLOAD BUTTON END --- */}
+
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                   {PROGRAMS.map((p, i) => (
                     <button key={i} onClick={() => handleProgramChange(i)}
