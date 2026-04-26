@@ -36,7 +36,7 @@ const apiKeys = parsedKeys.length > 0 ? parsedKeys : [""];
 // 2. Global index taaki yaad rahe aakhiri baar konsi key use hui thi
 let currentKeyIndex = 0; 
 
-export async function getUniversityData(promptText) {
+export async function getUniversityData(promptText: string) {
   let attempts = 0;
   // Jitni keys hain utni baar try karenge, ya minimum 5 baar
   const maxAttempts = Math.max(5, apiKeys.length); 
@@ -52,7 +52,6 @@ export async function getUniversityData(promptText) {
           throw new Error("API Key missing. Vercel dashboard me VITE_GEMINI_API_KEY check karein.");
       }
 
-      // Safe fallback model for fast parsing
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${currentKey}`;
       
       const response = await fetch(url, {
@@ -92,8 +91,8 @@ export async function getUniversityData(promptText) {
   }
 }
 
-// --- Naya AI Parser Function Add Kiya ---
-export async function parseDocumentWithAI(base64Data, mimeType) {
+// --- Naya AI Parser Function Add Kiya (PDF/Image Ke Liye) ---
+export async function parseDocumentWithAI(base64Data: string, mimeType: string) {
   let attempts = 0;
   const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
@@ -151,7 +150,7 @@ Output ONLY valid JSON.`;
 }
 
 // Global format functions so PDF and Dashboard use the exact same logic
-const formatINR = (amount) => {
+const formatINR = (amount: number) => {
   return new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
@@ -159,7 +158,7 @@ const formatINR = (amount) => {
   }).format(amount);
 };
 
-const formatUSD = (amount) => {
+const formatUSD = (amount: number) => {
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
@@ -170,8 +169,20 @@ const formatUSD = (amount) => {
 // Assuming 1 USD = 83.5 INR for fixed conversion
 const USD_TO_INR = 83.5;
 
-// --- Mock Database ---
-const PROGRAMS = [
+// --- Types & Interfaces ---
+interface ProgramData {
+  id: string;
+  name: string;
+  country: string;
+  baseTuitionUSD: number;
+  baseLivingUSD: number;
+  expectedCTCUSD: number;
+  taxRate: number; 
+  postGradLivingCostUSD: number; 
+}
+
+// --- Mock Database (Real-life approximate data as fallback) ---
+const PROGRAMS: ProgramData[] = [
   { id: 'ms_cs_us', name: 'MS Computer Science (USA)', country: 'USA', baseTuitionUSD: 50000, baseLivingUSD: 24000, expectedCTCUSD: 110000, taxRate: 0.30, postGradLivingCostUSD: 30000 },
   { id: 'mba_us', name: 'MBA (USA Top 20)', country: 'USA', baseTuitionUSD: 65000, baseLivingUSD: 22000, expectedCTCUSD: 130000, taxRate: 0.35, postGradLivingCostUSD: 35000 },
   { id: 'mim_uk', name: 'MEng (UK Russell Group)', country: 'UK', baseTuitionUSD: 38000, baseLivingUSD: 16000, expectedCTCUSD: 70000, taxRate: 0.25, postGradLivingCostUSD: 22000 },
@@ -182,29 +193,29 @@ const PROGRAMS = [
 ];
 
 export default function App() {
-  const handleNavigation = (page) => {
-      console.log(`Navigating to ${page}...`);
+  const handleNavigation = (page: string) => {
+      console.log(`Navigating to ${page}... (Navigation Mocked)`);
   }
 
-  const [selectedProgramIdx, setSelectedProgramIdx] = useState(0);
+  const [selectedProgramIdx, setSelectedProgramIdx] = useState<number>(0);
   
   // Dynamic State variables
-  const [tuitionUSD, setTuitionUSD] = useState(50000);
-  const [livingUSD, setLivingUSD] = useState(24000);
-  const [durationYears, setDurationYears] = useState(2);
-  const [salaryUSD, setSalaryUSD] = useState(110000);
-  const [currentTaxRate, setCurrentTaxRate] = useState(0.30);
-  const [currentPostGradLivingCost, setCurrentPostGradLivingCost] = useState(30000);
+  const [tuitionUSD, setTuitionUSD] = useState<number>(50000);
+  const [livingUSD, setLivingUSD] = useState<number>(24000);
+  const [durationYears, setDurationYears] = useState<number>(2);
+  const [salaryUSD, setSalaryUSD] = useState<number>(110000);
+  const [currentTaxRate, setCurrentTaxRate] = useState<number>(0.30);
+  const [currentPostGradLivingCost, setCurrentPostGradLivingCost] = useState<number>(30000);
   
-  const [loanPercent, setLoanPercent] = useState(80);
-  const [interestRate, setInterestRate] = useState(10.5); 
-  const [showReality, setShowReality] = useState(true);
+  const [loanPercent, setLoanPercent] = useState<number>(80);
+  const [interestRate, setInterestRate] = useState<number>(10.5); 
+  const [showReality, setShowReality] = useState<boolean>(true);
   const [calculated, setCalculated] = useState(false);
 
-  // AI State Variables
-  const [customProgramName, setCustomProgramName] = useState('');
-  const [isAILoading, setIsAILoading] = useState(false);
-  const [aiError, setAiError] = useState('');
+  // --- Naye State Variables ---
+  const [customProgramName, setCustomProgramName] = useState<string>('');
+  const [isAILoading, setIsAILoading] = useState<boolean>(false);
+  const [aiError, setAiError] = useState<string>('');
 
   // Parent Report Modal State
   const [showReportPreview, setShowReportPreview] = useState(false);
@@ -212,7 +223,7 @@ export default function App() {
 
   // --- Magic File Upload State ---
   const [isParsingDoc, setIsParsingDoc] = useState(false);
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load html2pdf library dynamically
   useEffect(() => {
@@ -220,10 +231,12 @@ export default function App() {
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
     script.async = true;
     document.body.appendChild(script);
-    return () => document.body.removeChild(script);
+    return () => {
+      document.body.removeChild(script);
+    };
   }, []);
 
-  const handleProgramChange = (idx) => {
+  const handleProgramChange = (idx: number) => {
     setSelectedProgramIdx(idx);
     const p = PROGRAMS[idx];
     setCalculated(false);
@@ -236,6 +249,7 @@ export default function App() {
     setCurrentPostGradLivingCost(p.postGradLivingCostUSD);
   };
 
+  // --- AI se Data Mangne wala Smart Function (with GUARDRAILS) ---
   const fetchAIData = async () => {
     if (!customProgramName) return;
     
@@ -286,7 +300,7 @@ export default function App() {
         
         setCalculated(false); 
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Data Fetch Error:", error);
       if (error.message && error.message.includes("API Key missing")) {
          setAiError("System Configuration Error: Vercel par API key set nahi hai.");
@@ -298,8 +312,8 @@ export default function App() {
     }
   };
 
-  // --- Naya Handle File Upload Logic ---
-  const handleFileUpload = async (e) => {
+  // --- Handle File Upload Logic ---
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -312,7 +326,8 @@ export default function App() {
       
       reader.onload = async () => {
         try {
-          const base64Data = reader.result.split(',')[1];
+          const result = reader.result as string;
+          const base64Data = result.split(',')[1];
           const mimeType = file.type;
 
           const responseText = await parseDocumentWithAI(base64Data, mimeType);
@@ -374,7 +389,7 @@ export default function App() {
     const disposableIncomeINR = inHandSalaryINR - postGradLivingCostINR;
 
     const monthlyRate = (interestRate / 100) / 12;
-    const months = 10 * 12; // 10 years repayment
+    const months = 10 * 12;
     
     let emiINR = 0;
     if (debtAtGraduationINR > 0) {
@@ -405,7 +420,7 @@ export default function App() {
 
   // FIxed PDF Download Function (Solves the White/Blank Page Issue)
   const handleDownloadPDF = () => {
-    if (!window.html2pdf) {
+    if (!(window as any).html2pdf) {
       alert("PDF engine load ho raha hai, please 2 second wait karein...");
       return;
     }
@@ -432,9 +447,9 @@ export default function App() {
         pagebreak:    { mode: ['css', 'legacy'], avoid: ['tr', '.break-inside-avoid'] } // FIX: Table rows aur cards ko beech se cut hone se rokega
       };
 
-      window.html2pdf().set(opt).from(element).save().then(() => {
+      (window as any).html2pdf().set(opt).from(element).save().then(() => {
         setIsDownloading(false);
-      }).catch((err) => {
+      }).catch((err: any) => {
         console.error("PDF generation error:", err);
         setIsDownloading(false);
         alert("PDF generate karne me problem hui. Kripya page refresh karke try karein.");
@@ -447,11 +462,12 @@ export default function App() {
       <div className="min-h-screen bg-slate-50 pt-16 print:hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           
+          {/* Header Section */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-8">
             <div className="flex items-center gap-4">
-              <button onClick={() => handleNavigation('dashboard')} className="p-2 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
-                <ChevronLeft className="w-5 h-5 text-slate-600" />
-              </button>
+               <button onClick={() => handleNavigation('dashboard')} className="p-2 hover:bg-slate-100 rounded-lg border border-slate-200 transition-colors">
+                 <ChevronLeft className="w-5 h-5 text-slate-600" />
+               </button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                   <TrendingUp className="text-emerald-600" />
@@ -477,6 +493,7 @@ export default function App() {
 
           <div className="grid lg:grid-cols-5 gap-6">
             
+            {/* Left Column: Inputs */}
             <div className="lg:col-span-2 space-y-5">
               <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
                 <h3 className="font-bold text-slate-900 mb-4 flex items-center justify-between">
@@ -515,6 +532,7 @@ export default function App() {
                   ))}
                 </div>
                 
+                {/* Custom Program AI Box */}
                 {PROGRAMS[selectedProgramIdx].id === 'custom' && (
                   <div className="mt-4 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
                     <label className="text-sm font-bold text-slate-700 block mb-2">
@@ -610,6 +628,7 @@ export default function App() {
               </div>
             </div>
 
+            {/* Right Column: Dashboards & Reality Output */}
             <div className="lg:col-span-3 space-y-5">
               
               {!calculated && (
@@ -622,6 +641,7 @@ export default function App() {
 
               {calculated && (
                 <>
+                  {/* Top Stat Cards */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 relative overflow-hidden group">
                       <p className="text-sm font-medium text-slate-500">Total Education Cost</p>
@@ -651,6 +671,7 @@ export default function App() {
                     </div>
                   </div>
 
+                  {/* The "Truth" Breakdown Section (Waterfall) */}
                   <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                     <div className="bg-slate-50 p-4 border-b border-slate-100 flex items-center justify-between">
                       <h3 className="font-bold text-slate-800 flex items-center gap-2">
@@ -662,15 +683,18 @@ export default function App() {
                     
                     <div className="p-6">
                       <div className="relative">
+                        {/* Base Line */}
                         <div className="absolute left-4 top-2 bottom-2 w-0.5 bg-slate-200"></div>
 
                         <div className="space-y-6">
+                          {/* CTC */}
                           <div className="relative pl-10">
                             <div className="absolute left-2.5 top-1.5 w-3.5 h-3.5 bg-green-500 rounded-full border-4 border-white shadow-sm"></div>
                             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Offer Letter CTC (Annual)</p>
                             <p className="text-xl font-extrabold text-slate-900">{formatINR(stats.expectedCTCINR)}</p>
                           </div>
 
+                          {/* Tax & Reality Drop */}
                           <div className={`relative pl-10 transition-all duration-500 ${!showReality ? 'opacity-40 grayscale' : 'opacity-100'}`}>
                             <div className="absolute left-2.5 top-2 w-3.5 h-3.5 bg-red-400 rounded-full border-4 border-white shadow-sm"></div>
                             <div className="flex justify-between items-center bg-red-50 p-3 rounded-xl border border-red-100">
@@ -681,6 +705,7 @@ export default function App() {
                             </div>
                           </div>
 
+                          {/* Living Expenses */}
                           <div className={`relative pl-10 transition-all duration-500 ${!showReality ? 'opacity-40 grayscale' : 'opacity-100'}`}>
                             <div className="absolute left-2.5 top-2 w-3.5 h-3.5 bg-orange-400 rounded-full border-4 border-white shadow-sm"></div>
                             <div className="flex justify-between items-center bg-orange-50 p-3 rounded-xl border border-orange-100">
@@ -692,6 +717,7 @@ export default function App() {
                             </div>
                           </div>
 
+                          {/* EMI */}
                           <div className="relative pl-10">
                             <div className="absolute left-2.5 top-2 w-3.5 h-3.5 bg-purple-500 rounded-full border-4 border-white shadow-sm"></div>
                             <div className="flex justify-between items-center bg-purple-50 p-3 rounded-xl border border-purple-100">
@@ -707,6 +733,7 @@ export default function App() {
                             </div>
                           </div>
 
+                          {/* Final Savings */}
                           <div className={`relative pl-10 transition-all duration-500 ${!showReality ? 'hidden' : 'block'}`}>
                             <div className="absolute left-1.5 top-2 w-5 h-5 bg-emerald-500 rounded-full border-4 border-white shadow-sm flex items-center justify-center z-10">
                               <div className="w-2 h-2 bg-white rounded-full"></div>
@@ -772,6 +799,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* Parent PDF Preview Modal */}
       {showReportPreview && calculated && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -813,6 +841,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Hidden layout specifically for print generation */}
       <div className="hidden print:block absolute top-0 left-0 w-full bg-white text-black">
          <PrintableReportLayout stats={stats} activeProgramName={activeProgramName} durationYears={durationYears} loanPercent={loanPercent} interestRate={interestRate} />
       </div>
@@ -821,7 +850,7 @@ export default function App() {
 }
 
 // Sub-component for the Formal Document Layout - EXACTLY 1:1 WITH APP
-function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPercent, interestRate }) {
+function PrintableReportLayout({ stats, activeProgramName, durationYears, loanPercent, interestRate }: any) {
   const isSafe = stats.netSavingsINR > 0;
 
   // Monthly calculations for parents
