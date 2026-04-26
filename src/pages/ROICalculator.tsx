@@ -61,6 +61,7 @@ export async function getUniversityData(promptText: string) {
       
       if (!response.ok) {
          if (response.status === 403 || response.status === 429) {
+             console.warn(`Key index ${currentKeyIndex % apiKeys.length} fail ho gayi. Next key load kar rahe hain...`);
              currentKeyIndex++; 
          }
          throw new Error(`HTTP Error: ${response.status}`);
@@ -80,13 +81,11 @@ export async function getUniversityData(promptText: string) {
   }
 }
 
-// --- UPDATED AI Parser Function (Salary Fix Ke Saath) ---
 export async function parseDocumentWithAI(base64Data: string, mimeType: string) {
   let attempts = 0;
   const maxAttempts = Math.max(5, apiKeys.length); 
   const delays = [1000, 2000, 4000, 8000, 16000];
 
-  // YAHAN FIX KIYA: expected_salary_usd add kiya hai
   const promptText = `You are an expert Study Abroad Offer Letter Parser. 
   
 CRITICAL GUARDRAIL: First, verify if the provided image/document is an Admission Offer Letter from a University/College. 
@@ -215,6 +214,12 @@ export default function App() {
   const [isParsingDoc, setIsParsingDoc] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [showLoanModal, setShowLoanModal] = useState(false);
+  const [cgpa, setCgpa] = useState('');
+  const [collateral, setCollateral] = useState('no');
+  const [loanAIResult, setLoanAIResult] = useState('');
+  const [isLoanAILoading, setIsLoanAILoading] = useState(false);
+
   useEffect(() => {
     const script = document.createElement('script');
     script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
@@ -244,19 +249,24 @@ export default function App() {
     setIsAILoading(true);
     setAiError(''); 
     try {
+      // YAHAN FIX KIYA: Prompt ko lenient banaya for typos (bcs) and missing universities.
       const prompt = `You are a strict, data-driven Study Abroad Financial Analyst. Analyze the following user input: "${customProgramName}".
 
-      CRITICAL GUARDRAIL: First, check if this input is a valid Higher Education Degree Program (e.g., MS, MBA, BSc) at a valid University or Country. 
-      If the input is a Job Offer, a company name, a random string, or NOT an educational program, YOU MUST REJECT IT by returning exactly this JSON:
+      CRITICAL GUARDRAIL: Check if this input is related to a Higher Education Degree Program (like Bachelors, Masters, MBA, PhD, etc.).
+      - BE LENIENT with typos (e.g., "bcs" = BSc, "btech" = B.Tech).
+      - ACCEPT generic locations even if a specific university is NOT mentioned (e.g., "BSc Chemistry at France" is VALID. Provide average national data for France).
+      - ONLY REJECT if the input is completely irrelevant, like a Job Offer, a random string, or a company name.
+      
+      If it must be rejected, return exactly this JSON:
       {
-        "error": "Invalid Input: This looks like a job or irrelevant text. Please enter a valid University Program (e.g., MS in CS at TUM Germany)."
+        "error": "Invalid Input: Ye kisi course ka naam nahi lag raha. Kripya sahi details dalein (e.g., MS in CS in USA)."
       }
 
-      If and ONLY IF it is a valid educational program, follow these Strict Rules to provide current (2025/2026) data:
-      1. Tuition: DO NOT guess. Use the actual international student tuition fee per year.
-      2. Living Cost: Must reflect the actual current cost of rent/food in that specific city/country.
-      3. Salary: Provide the realistic AVERAGE starting base salary (CTC) in USD for a graduate in this specific field.
-      4. Tax Rate: Accurate average income tax percentage (as a decimal, e.g., 0.35).
+      If VALID, follow these Strict Rules to provide current (2025/2026) data:
+      1. Tuition: Provide the average international student tuition fee per year in USD for this degree/country.
+      2. Living Cost: Provide the average current annual cost of living/rent in USD for that country/city.
+      3. Salary: Provide the realistic AVERAGE starting base salary (CTC) in USD for a graduate in this field.
+      4. Tax Rate: Provide the average income tax percentage for that country (as a decimal, e.g., 0.35).
       
       Return ONLY a valid JSON object with NO markdown formatting. Use these exact keys:
       {
@@ -339,7 +349,6 @@ export default function App() {
             if (aiData.living_cost_usd) setLivingUSD(aiData.living_cost_usd);
             if (aiData.duration_years) setDurationYears(aiData.duration_years);
             
-            // YAHAN FIX KIYA: Ab Salary slider bhi automatically update hoga upload par!
             if (aiData.expected_salary_usd) setSalaryUSD(aiData.expected_salary_usd);
             
             const customIdx = PROGRAMS.findIndex(p => p.id === 'custom');
@@ -449,6 +458,23 @@ export default function App() {
         alert("PDF generate karne me problem hui. Kripya page refresh karke try karein.");
       });
     }, 300);
+  };
+
+  const checkLoanEligibility = async () => {
+    if (!cgpa) return;
+    setIsLoanAILoading(true);
+    setLoanAIResult('');
+    
+    try {
+      const prompt = `Act as an expert Indian Education Loan Advisor. A student wants an education loan of ${formatINR(stats.loanAmountINR)}. Their CGPA is ${cgpa} out of 10. Collateral available: ${collateral}. Based on current Indian market trends (SBI, HDFC, Credila, etc.), give a short 2-3 line realistic prediction in Hinglish/English: which bank is best, estimated interest rate, and a quick encouraging remark. Do not use markdown formatting. Make it sound like a real agent advising them.`;
+      
+      const result = await getUniversityData(prompt);
+      setLoanAIResult(result || "Aapko SBI ya HDFC se easily 10.5% pe loan mil jayega. Click Apply Now!");
+    } catch (error) {
+      setLoanAIResult("Aapke profile ke hisaab se SBI Global Ed-Vantage ya HDFC Credila best rahega (approx 10.5% - 11.5% interest rate). Aap directly apply kar sakte hain.");
+    } finally {
+      setIsLoanAILoading(false);
+    }
   };
 
   return (
@@ -760,7 +786,11 @@ export default function App() {
                       </div>
                     </button>
 
-                    <div className="bg-slate-900 rounded-2xl p-4 flex flex-row items-center justify-between text-white shadow-lg relative overflow-hidden group hover:bg-slate-800 transition-colors cursor-pointer" onClick={() => handleNavigation('loan')}>
+                    {/* RESTORED: Apply Now navigates to loan estimator */}
+                    <div 
+                      className="bg-slate-900 rounded-2xl p-4 flex flex-row items-center justify-between text-white shadow-lg relative overflow-hidden group hover:bg-slate-800 transition-colors cursor-pointer" 
+                      onClick={() => handleNavigation('loan')}
+                    >
                       <div className="absolute -right-4 -top-4 opacity-10 group-hover:opacity-20 transition-opacity">
                           <GraduationCap size={100} />
                       </div>
@@ -780,6 +810,7 @@ export default function App() {
         </div>
       </div>
 
+      {/* Parent PDF Preview Modal */}
       {showReportPreview && calculated && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm print:hidden">
           <div className="bg-white rounded-2xl w-full max-w-5xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -821,6 +852,7 @@ export default function App() {
         </div>
       )}
 
+      {/* Hidden layout specifically for print generation */}
       <div className="hidden print:block absolute top-0 left-0 w-full bg-white text-black">
          <PrintableReportLayout stats={stats} activeProgramName={activeProgramName} durationYears={durationYears} loanPercent={loanPercent} interestRate={interestRate} />
       </div>
